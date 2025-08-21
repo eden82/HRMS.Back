@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRMS.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250815182140_UpdateOrganizationModel")]
-    partial class UpdateOrganizationModel
+    [Migration("20250818154715_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,37 @@ namespace HRMS.Backend.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("HRMS.Backend.Models.Attendance", b =>
+                {
+                    b.Property<int>("AttendanceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AttendanceId"));
+
+                    b.Property<DateTime>("ClockIn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ClockOut")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<double?>("TotalHours")
+                        .HasColumnType("float");
+
+                    b.HasKey("AttendanceId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("Attendances");
+                });
 
             modelBuilder.Entity("HRMS.Backend.Models.Department", b =>
                 {
@@ -214,72 +245,114 @@ namespace HRMS.Backend.Migrations
 
                     b.Property<string>("AdminEmail")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AdminFirstName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AdminLastName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AdminPhone")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("AttendanceTimeTracking")
+                    b.Property<bool>("AttendanceTracking")
                         .HasColumnType("bit");
 
-                    b.Property<string>("CompanySize")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                    b.Property<string>("BackupFrequency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("CountryCode")
-                        .HasMaxLength(2)
-                        .HasColumnType("nvarchar(2)");
+                    b.Property<string>("CompanySize")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("CriticalAlertsOnly")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DataEncryptionAtRest")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DataRetentionYears")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefaultExportFormat")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Domain")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EmailNotifications")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("EmployeeManagement")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("EnableAuditLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableSSO")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Industry")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IpRestrictions")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LeaveManagement")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordPolicy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("PerformanceManagement")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("RecruitmentATS")
+                    b.Property<bool>("PushNotifications")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("Recruitment")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequireTwoFactorAuth")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SSOProvider")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SessionTimeout")
+                        .HasColumnType("int");
 
                     b.Property<int>("TenantId")
                         .HasColumnType("int");
 
                     b.Property<string>("TimeZone")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("TrainingDevelopment")
                         .HasColumnType("bit");
@@ -408,6 +481,17 @@ namespace HRMS.Backend.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("HRMS.Backend.Models.Attendance", b =>
+                {
+                    b.HasOne("HRMS.Backend.Models.Employee", "Employee")
+                        .WithMany("Attendances")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("HRMS.Backend.Models.Department", b =>
                 {
                     b.HasOne("HRMS.Backend.Models.Organization", "Organization")
@@ -485,6 +569,11 @@ namespace HRMS.Backend.Migrations
                     b.Navigation("ChildDepartments");
 
                     b.Navigation("Employees");
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.Employee", b =>
+                {
+                    b.Navigation("Attendances");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Organization", b =>

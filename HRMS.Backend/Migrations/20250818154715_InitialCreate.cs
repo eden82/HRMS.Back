@@ -33,12 +33,40 @@ namespace HRMS.Backend.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    TenantId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    LogoUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Timezone = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Domain = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Industry = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CompanySize = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AdminFirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AdminLastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AdminEmail = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AdminPhone = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Country = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TimeZone = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EmployeeManagement = table.Column<bool>(type: "bit", nullable: false),
+                    AttendanceTracking = table.Column<bool>(type: "bit", nullable: false),
+                    LeaveManagement = table.Column<bool>(type: "bit", nullable: false),
+                    Recruitment = table.Column<bool>(type: "bit", nullable: false),
+                    PerformanceManagement = table.Column<bool>(type: "bit", nullable: false),
+                    TrainingDevelopment = table.Column<bool>(type: "bit", nullable: false),
+                    EnableSSO = table.Column<bool>(type: "bit", nullable: false),
+                    SSOProvider = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IpRestrictions = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RequireTwoFactorAuth = table.Column<bool>(type: "bit", nullable: false),
+                    PasswordPolicy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SessionTimeout = table.Column<int>(type: "int", nullable: false),
+                    EnableAuditLogging = table.Column<bool>(type: "bit", nullable: false),
+                    EmailNotifications = table.Column<bool>(type: "bit", nullable: false),
+                    PushNotifications = table.Column<bool>(type: "bit", nullable: false),
+                    CriticalAlertsOnly = table.Column<bool>(type: "bit", nullable: false),
+                    BackupFrequency = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DataRetentionYears = table.Column<int>(type: "int", nullable: false),
+                    DefaultExportFormat = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DataEncryptionAtRest = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -195,6 +223,34 @@ namespace HRMS.Backend.Migrations
                         principalColumn: "Id");
                 });
 
+            migrationBuilder.CreateTable(
+                name: "Attendances",
+                columns: table => new
+                {
+                    AttendanceId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EmployeeId = table.Column<int>(type: "int", nullable: false),
+                    ClockIn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClockOut = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TotalHours = table.Column<double>(type: "float", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Attendances", x => x.AttendanceId);
+                    table.ForeignKey(
+                        name: "FK_Attendances_Employees_EmployeeId",
+                        column: x => x.EmployeeId,
+                        principalTable: "Employees",
+                        principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Attendances_EmployeeId",
+                table: "Attendances",
+                column: "EmployeeId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_Departments_OrganizationId",
                 table: "Departments",
@@ -245,13 +301,16 @@ namespace HRMS.Backend.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Employees");
+                name: "Attendances");
 
             migrationBuilder.DropTable(
                 name: "Roles");
 
             migrationBuilder.DropTable(
                 name: "Users");
+
+            migrationBuilder.DropTable(
+                name: "Employees");
 
             migrationBuilder.DropTable(
                 name: "Departments");
