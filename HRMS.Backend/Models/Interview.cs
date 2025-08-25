@@ -1,26 +1,22 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace HRMS.Backend.Models
 {
-
     public class Interview
     {
         public int Id { get; set; }
         public int ApplicantId { get; set; }
-        public DateTime ScheduledOn { get; set; }
-        public int Duration { get; set; }
-        public DateTime ScheduledDate { get; set; }
-        public string LocationUrl { get; set; }
-        public string MeetingUrl { get; set; }
-        public int InterviewerId { get; set; }
-        public string InterviewNote { get; set; }
-        public string Status { get; set; }
-        public string Mode { get; set; }
+        public DateTime? ScheduledOn { get; set; }
+        public int? Duration { get; set; }
+        public DateTime? ScheduledDate { get; set; }
 
-        // Navigation
-        public Applicant Applicant { get; set; }
-        public Employee Interviewer { get; set; }
+        public string? LocationUrl { get; set; }
+        public string? MeetingUrl { get; set; }
+
+        public int? InterviewerId { get; set; }
+        public string InterviewNote { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Mode { get; set; } = string.Empty;
+
+        public Applicant Applicant { get; set; } = null!;
+        public Employee? Interviewer { get; set; }
     }
 }

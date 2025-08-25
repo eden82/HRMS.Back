@@ -1,19 +1,16 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace HRMS.Backend.Models
 {
-
     public class OrgSetting
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
+        public int TenantId { get; set; }
         public int OrganizationId { get; set; }
 
-        // JSONB stored as string
-        public string Settings { get; set; }
+        public string Settings { get; set; } = "{}";
 
-        // Navigation
-        public Organization Organization { get; set; }
+        public int Version { get; set; } = 1;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public Organization Organization { get; set; } = null!;
     }
 }

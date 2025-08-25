@@ -1,7 +1,3 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace HRMS.Backend.Models
 {
     public class EmployeeRole
@@ -11,9 +7,8 @@ namespace HRMS.Backend.Models
         public int EmployeeId { get; set; }
         public int DepartmentId { get; set; }
 
-        // Navigation
-        public Role Role { get; set; }
-        public Employee Employee { get; set; }
-        public Department Department { get; set; }
+        public Role Role { get; set; } = null!;
+        public Employee Employee { get; set; } = null!;
+        public Department Department { get; set; } = null!;
     }
 }

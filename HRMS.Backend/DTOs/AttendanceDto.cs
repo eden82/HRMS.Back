@@ -1,15 +1,56 @@
+using System;
 
-
-namespace HRMS.Backend.DTOs
+namespace HRMS.Backend.Models
 {
-    public class AttendanceDto
+    public sealed class AttendanceDto
     {
-        public int AttendanceId { get; set; }
+        public int Id { get; set; }
         public int EmployeeId { get; set; }
-        public EmployeeDto Employee { get; set; }  // Now holds employee info
-        public DateTime ClockIn { get; set; }
-        public DateTime ClockOut { get; set; }
-        public double TotalHours { get; set; }
-        public string Status { get; set; }
+        public int TenantId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public DateTime? ClockOut { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+        public double? TotalHours { get; set; } // computed in controller
+    }
+
+    public sealed class AttendanceCreateUpdateDto
+    {
+        public int EmployeeId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public DateTime? ClockOut { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+    }
+
+    public sealed class ClockInDto
+    {
+        public int EmployeeId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+    }
+
+    public sealed class ClockOutDto
+    {
+        public int? AttendanceId { get; set; }
+        public int? EmployeeId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockOut { get; set; }
     }
 }

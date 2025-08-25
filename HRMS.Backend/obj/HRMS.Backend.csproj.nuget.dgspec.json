@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Lenovo\\HRMS.Back\\hrms.backend\\HRMS.Backend.csproj": {}
+    "C:\\Users\\Lenovo\\HRMS.Back\\HRMS.Backend\\HRMS.Backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Lenovo\\HRMS.Back\\hrms.backend\\HRMS.Backend.csproj": {
+    "C:\\Users\\Lenovo\\HRMS.Back\\HRMS.Backend\\HRMS.Backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Lenovo\\HRMS.Back\\hrms.backend\\HRMS.Backend.csproj",
+        "projectUniqueName": "C:\\Users\\Lenovo\\HRMS.Back\\HRMS.Backend\\HRMS.Backend.csproj",
         "projectName": "HRMS.Backend",
-        "projectPath": "C:\\Users\\Lenovo\\HRMS.Back\\hrms.backend\\HRMS.Backend.csproj",
+        "projectPath": "C:\\Users\\Lenovo\\HRMS.Back\\HRMS.Backend\\HRMS.Backend.csproj",
         "packagesPath": "C:\\Users\\Lenovo\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Lenovo\\HRMS.Back\\hrms.backend\\obj\\",
+        "outputPath": "C:\\Users\\Lenovo\\HRMS.Back\\HRMS.Backend\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

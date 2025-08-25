@@ -4,26 +4,53 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Backend.Models
 {
+    [Table("attendance")]
     public class Attendance
     {
         [Key]
-        public int AttendanceId { get; set; }
+        [Column("Id")]
+        public int Id { get; set; }
 
-        [Required]
+        [Column("employee_id")]
         public int EmployeeId { get; set; }
 
-        [ForeignKey("EmployeeId")]
-        public Employee? Employee { get; set; }
+        [Column("tenant_id")]
+        public int TenantId { get; set; }
 
-        [Required]
-        public DateTime ClockIn { get; set; }
+        [Column("attendance_date", TypeName = "date")]
+        public DateTime? AttendanceDate { get; set; }
 
+        [Column("clock_in")]
+        public DateTime? ClockIn { get; set; }
+
+        [Column("clock_out")]
         public DateTime? ClockOut { get; set; }
 
-        public double? TotalHours { get; set; }
+        [Column("status")]
+        [MaxLength(50)]
+        public string? Status { get; set; }
 
-        [MaxLength(20)]
-        public string? Status { get; set; }   // backend will assign
+        [Column("location")]
+        [MaxLength(200)]
+        public string? Location { get; set; }
+
+        [Column("shift_name")]
+        [MaxLength(100)]
+        public string? ShiftName { get; set; }
+
+        [Column("source")]
+        [MaxLength(50)]
+        public string? Source { get; set; }
+
+        [Column("ip_address")]
+        [MaxLength(50)]
+        public string? IpAddress { get; set; }
+
+        [Column("exception_note")]
+        public string? ExceptionNote { get; set; }
+
+        // Navigation properties (ensure Employee and Tenant are in the same namespace)
+        public Employee? Employee { get; set; }
+        public Tenant? Tenant { get; set; }
     }
-
 }
