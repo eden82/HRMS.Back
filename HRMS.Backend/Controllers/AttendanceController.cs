@@ -18,13 +18,13 @@ namespace HRMS.Backend.Controllers
         private readonly AppDbContext _context;
         public AttendanceController(AppDbContext context) => _context = context;
 
-        // GET /api/attendance?employeeId=1&date=2025-08-25
+        // GET /api/attendance?employeeId={guid}&date=2025-08-25
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AttendanceDto>>> Query(
-            [FromQuery] int? employeeId,
+            [FromQuery] Guid? employeeId,
             [FromQuery] DateTime? date)
         {
-            var q = _context.Set<Attendance>().AsNoTracking().AsQueryable();
+            var q = _context.Attendances.AsNoTracking().AsQueryable();
 
             if (employeeId.HasValue)
                 q = q.Where(a => a.EmployeeId == employeeId.Value);
@@ -35,7 +35,6 @@ namespace HRMS.Backend.Controllers
                 q = q.Where(a => a.AttendanceDate == d);
             }
 
-            // PROJECT TO DTO IN SQL (prevents EF from selecting shadow columns)
             var list = await q
                 .OrderByDescending(a => a.AttendanceDate)
                 .ThenByDescending(a => a.ClockIn)
@@ -62,11 +61,11 @@ namespace HRMS.Backend.Controllers
             return Ok(list);
         }
 
-        // GET /api/attendance/5
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<AttendanceDto>> GetById(int id)
+        // GET /api/attendance/{id}
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<AttendanceDto>> GetById(Guid id)
         {
-            var dto = await _context.Set<Attendance>()
+            var dto = await _context.Attendances
                 .AsNoTracking()
                 .Where(x => x.Id == id)
                 .Select(a => new AttendanceDto
@@ -98,8 +97,7 @@ namespace HRMS.Backend.Controllers
         [Consumes("application/json")]
         public async Task<ActionResult<AttendanceDto>> Create([FromBody] AttendanceCreateUpdateDto dto)
         {
-            // Validate employee and derive tenant_id
-            var emp = await _context.Set<Employee>()
+            var emp = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId);
             if (emp is null)
@@ -107,6 +105,7 @@ namespace HRMS.Backend.Controllers
 
             var attendance = new Attendance
             {
+                Id = Guid.NewGuid(),
                 EmployeeId = dto.EmployeeId,
                 TenantId = emp.TenantId,
                 AttendanceDate = (dto.AttendanceDate ?? DateTime.UtcNow).Date,
@@ -120,22 +119,21 @@ namespace HRMS.Backend.Controllers
                 ExceptionNote = dto.ExceptionNote
             };
 
-            _context.Set<Attendance>().Add(attendance);
+            _context.Attendances.Add(attendance);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetById), new { id = attendance.Id }, ToDto(attendance));
         }
 
-        // PUT /api/attendance/5
-        [HttpPut("{id:int}")]
+        // PUT /api/attendance/{id}
+        [HttpPut("{id:guid}")]
         [Consumes("application/json")]
-        public async Task<IActionResult> Update(int id, [FromBody] AttendanceCreateUpdateDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] AttendanceCreateUpdateDto dto)
         {
-            var a = await _context.Set<Attendance>().FirstOrDefaultAsync(x => x.Id == id);
+            var a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == id);
             if (a is null) return NotFound();
 
-            // validate employee & tenant
-            var emp = await _context.Set<Employee>()
+            var emp = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId);
             if (emp is null)
@@ -157,14 +155,14 @@ namespace HRMS.Backend.Controllers
             return NoContent();
         }
 
-        // DELETE /api/attendance/5
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        // DELETE /api/attendance/{id}
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> Delete(Guid id)
         {
-            var a = await _context.Set<Attendance>().FirstOrDefaultAsync(x => x.Id == id);
+            var a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == id);
             if (a is null) return NotFound();
 
-            _context.Set<Attendance>().Remove(a);
+            _context.Attendances.Remove(a);
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -174,13 +172,13 @@ namespace HRMS.Backend.Controllers
         [Consumes("application/json")]
         public async Task<ActionResult<AttendanceDto>> ClockIn([FromBody] ClockInDto dto)
         {
-            var emp = await _context.Set<Employee>().AsNoTracking()
+            var emp = await _context.Employees.AsNoTracking()
                 .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId);
             if (emp is null) return BadRequest(new { message = "Employee not found." });
 
             var today = (dto.AttendanceDate ?? DateTime.UtcNow).Date;
 
-            var a = await _context.Set<Attendance>()
+            var a = await _context.Attendances
                 .FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId &&
                                           x.TenantId == emp.TenantId &&
                                           x.AttendanceDate == today);
@@ -189,6 +187,7 @@ namespace HRMS.Backend.Controllers
             {
                 a = new Attendance
                 {
+                    Id = Guid.NewGuid(),
                     EmployeeId = dto.EmployeeId,
                     TenantId = emp.TenantId,
                     AttendanceDate = today,
@@ -200,7 +199,7 @@ namespace HRMS.Backend.Controllers
                     ShiftName = dto.ShiftName,
                     ExceptionNote = dto.ExceptionNote
                 };
-                _context.Set<Attendance>().Add(a);
+                _context.Attendances.Add(a);
                 await _context.SaveChangesAsync();
                 return CreatedAtAction(nameof(GetById), new { id = a.Id }, ToDto(a));
             }
@@ -231,20 +230,19 @@ namespace HRMS.Backend.Controllers
 
             if (dto.AttendanceId.HasValue)
             {
-                a = await _context.Set<Attendance>()
-                    .FirstOrDefaultAsync(x => x.Id == dto.AttendanceId.Value);
+                a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == dto.AttendanceId.Value);
             }
             else
             {
                 if (!dto.EmployeeId.HasValue)
                     return BadRequest(new { message = "EmployeeId or AttendanceId is required." });
 
-                var emp = await _context.Set<Employee>().AsNoTracking()
+                var emp = await _context.Employees.AsNoTracking()
                     .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId.Value);
                 if (emp is null) return BadRequest(new { message = "Employee not found." });
 
                 var date = (dto.AttendanceDate ?? when).Date;
-                a = await _context.Set<Attendance>()
+                a = await _context.Attendances
                     .FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId.Value &&
                                               x.TenantId == emp.TenantId &&
                                               x.AttendanceDate == date);
@@ -280,12 +278,12 @@ namespace HRMS.Backend.Controllers
         };
     }
 
-    // ===== DTOs =====
+    // ===== DTOs (GUID) =====
     public sealed class AttendanceDto
     {
-        public int Id { get; set; }
-        public int EmployeeId { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid TenantId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public DateTime? ClockOut { get; set; }
@@ -295,12 +293,12 @@ namespace HRMS.Backend.Controllers
         public string? Source { get; set; }
         public string? IpAddress { get; set; }
         public string? ExceptionNote { get; set; }
-        public double? TotalHours { get; set; } // computed
+        public double? TotalHours { get; set; }
     }
 
     public sealed class AttendanceCreateUpdateDto
     {
-        public int EmployeeId { get; set; }
+        public Guid EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public DateTime? ClockOut { get; set; }
@@ -314,7 +312,7 @@ namespace HRMS.Backend.Controllers
 
     public sealed class ClockInDto
     {
-        public int EmployeeId { get; set; }
+        public Guid EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public string? Status { get; set; }
@@ -327,8 +325,8 @@ namespace HRMS.Backend.Controllers
 
     public sealed class ClockOutDto
     {
-        public int? AttendanceId { get; set; }
-        public int? EmployeeId { get; set; }
+        public Guid? AttendanceId { get; set; }
+        public Guid? EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockOut { get; set; }
     }

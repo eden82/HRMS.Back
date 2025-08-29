@@ -4,10 +4,10 @@ namespace HRMS.Backend.Models
 {
     public class Applicant
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         // FK -> jobs(id)
-        public int JobId { get; set; }
+        public Guid JobId { get; set; }
         public Job Job { get; set; } = null!;
 
         [Required, MaxLength(200)]

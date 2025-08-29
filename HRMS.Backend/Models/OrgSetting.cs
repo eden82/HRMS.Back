@@ -2,9 +2,9 @@ namespace HRMS.Backend.Models
 {
     public class OrgSetting
     {
-        public long Id { get; set; }
-        public int TenantId { get; set; }
-        public int OrganizationId { get; set; }
+        public Guid Id { get; set; }
+        public Guid TenantId { get; set; }
+        public Guid OrganizationId { get; set; }
 
         public string Settings { get; set; } = "{}";
 

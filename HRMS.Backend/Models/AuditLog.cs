@@ -2,9 +2,9 @@ namespace HRMS.Backend.Models
 {
     public class AuditLog
     {
-        public int Id { get; set; }
-        public int EmployeeId { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid TenantId { get; set; }
 
         public string Action { get; set; } = string.Empty;
         public string Module { get; set; } = string.Empty;

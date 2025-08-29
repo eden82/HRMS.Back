@@ -2,8 +2,8 @@ namespace HRMS.Backend.Models
 {
     public class Interview
     {
-        public int Id { get; set; }
-        public int ApplicantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid ApplicantId { get; set; }
         public DateTime? ScheduledOn { get; set; }
         public int? Duration { get; set; }
         public DateTime? ScheduledDate { get; set; }

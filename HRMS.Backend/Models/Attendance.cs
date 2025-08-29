@@ -9,13 +9,13 @@ namespace HRMS.Backend.Models
     {
         [Key]
         [Column("Id")]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [Column("employee_id")]
-        public int EmployeeId { get; set; }
+        public Guid EmployeeId { get; set; }
 
         [Column("tenant_id")]
-        public int TenantId { get; set; }
+        public Guid TenantId { get; set; }
 
         [Column("attendance_date", TypeName = "date")]
         public DateTime? AttendanceDate { get; set; }

@@ -4,9 +4,9 @@ namespace HRMS.Backend.Models
 {
     public sealed class AttendanceDto
     {
-        public int Id { get; set; }
-        public int EmployeeId { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid TenantId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public DateTime? ClockOut { get; set; }
@@ -21,7 +21,7 @@ namespace HRMS.Backend.Models
 
     public sealed class AttendanceCreateUpdateDto
     {
-        public int EmployeeId { get; set; }
+        public Guid EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public DateTime? ClockOut { get; set; }
@@ -35,7 +35,7 @@ namespace HRMS.Backend.Models
 
     public sealed class ClockInDto
     {
-        public int EmployeeId { get; set; }
+        public Guid EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockIn { get; set; }
         public string? Status { get; set; }
@@ -48,8 +48,8 @@ namespace HRMS.Backend.Models
 
     public sealed class ClockOutDto
     {
-        public int? AttendanceId { get; set; }
-        public int? EmployeeId { get; set; }
+        public Guid? AttendanceId { get; set; }
+        public Guid? EmployeeId { get; set; }
         public DateTime? AttendanceDate { get; set; }
         public DateTime? ClockOut { get; set; }
     }

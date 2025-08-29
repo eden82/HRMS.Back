@@ -1,55 +1,82 @@
-public class EmployeeDto
+using System;
+using System.ComponentModel.DataAnnotations;
+
+namespace HRMS.Backend.DTOs
 {
-    public int EmployeeID { get; set; }
+    // Read DTO (what you return to clients)
+    public class EmployeeDto
+    {
+        public Guid Id { get; set; }                 // maps from Employee.EmployeeID
+        public Guid DepartmentId { get; set; }
+        public Guid OrganizationId { get; set; }
+        public Guid TenantId { get; set; }
+        public Guid RoleId { get; set; }
 
-    // Personal Info
-    public string? FirstName { get; set; }
-    public string LastName { get; set; } = string.Empty;
-    public DateTime DateOfBirth { get; set; }
-    public string? Gender { get; set; }
-    public string? Nationality { get; set; }
-    public string? MaritalStatus { get; set; }
+        // Personal & contact
+        public string FirstName { get; set; } = string.Empty;
+        public string MiddleName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string EmergencyContactName { get; set; } = string.Empty;
+        public string EmergencyContactNumber { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public string Nationality { get; set; } = string.Empty;
+        public string MaritalStatus { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
 
-    // Contact Info
-    public string? Email { get; set; }
-    public string? PhoneNumber { get; set; }
-    public string? Address { get; set; }
-    public string? EmergencyContact { get; set; }
+        // Job
+        public DateTime DateOfBirth { get; set; }
+        public string JobTitle { get; set; } = string.Empty;
+        public string EmployeeCode { get; set; } = string.Empty;
+        public string EmployeeEducationStatus { get; set; } = string.Empty;
+        public string EmploymentType { get; set; } = string.Empty;
+        public string PhotoUrl { get; set; } = string.Empty;
+        public DateTime JoiningDate { get; set; }
 
-    // Job Info
-    public string? JobTitle { get; set; }
-    public string? EmploymentType { get; set; }
-    public string? Manager { get; set; }
-    public DateTime? JoiningDate { get; set; }
-    public string? Salary { get; set; }
-    public string? Currency { get; set; }
-    public string? Role { get; set; }
+        // Other
+        public string BankDetails { get; set; } = string.Empty;
+        public string CustomFields { get; set; } = "{}";
 
-    // Payment Info
-    public string? PaymentMethod { get; set; }
-    public string? BankAccountNumber { get; set; }
-    public string? TaxIdentificationNumber { get; set; }
+        // Tracking
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public DateTime? TerminatedDate { get; set; }
+    }
 
-    // Benefits & Documents (only paths)
-    public string? BenefitsEnrollment { get; set; }
-    public string? PassportNumber { get; set; }
-    public string? ResumePath { get; set; }
-    public string? ContractFilePath { get; set; }
-    public string? CertificationPath { get; set; }
+    // Write DTO (what clients send on create/update)
+    public class EmployeeCreateUpdateDto
+    {
+        // Required FKs
+        [Required] public Guid DepartmentId { get; set; } // org/tenant derived from this
+        [Required] public Guid RoleId { get; set; }
 
-    // System Access (usually exclude password for security)
-    public string? Username { get; set; }
+        // Required personal & contact
+        [Required, MaxLength(100)] public string FirstName { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string MiddleName { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string LastName { get; set; } = string.Empty;
 
-    // Work Info
-    public string? WorkLocation { get; set; }
-    public string? ShiftDetails { get; set; }
+        [Required, EmailAddress, MaxLength(255)] public string Email { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string PhoneNumber { get; set; } = string.Empty;
+        [Required, MaxLength(200)] public string EmergencyContactName { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string EmergencyContactNumber { get; set; } = string.Empty;
 
-    // Navigation info as *names* (to avoid cycles)
-    
-    public string? DepartmentName { get; set; }
-    
+        [Required, MaxLength(50)] public string Gender { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string Nationality { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string MaritalStatus { get; set; } = string.Empty;
+        [Required, MaxLength(500)] public string Address { get; set; } = string.Empty;
 
-    // Tracking
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+        // Required job info
+        [Required] public DateTime DateOfBirth { get; set; }
+        [Required, MaxLength(150)] public string JobTitle { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string EmployeeCode { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string EmployeeEducationStatus { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string EmploymentType { get; set; } = string.Empty;
+        [Required, MaxLength(2083)] public string PhotoUrl { get; set; } = string.Empty;
+        [Required] public DateTime JoiningDate { get; set; }
+
+        // Required other fields
+        [Required] public string BankDetails { get; set; } = string.Empty;
+        [Required] public string CustomFields { get; set; } = "{}";
+    }
 }

@@ -7,7 +7,8 @@ using System.Security.Claims;
 using System.Text;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Authorization;
-
+using System;
+using System.Threading.Tasks;
 
 namespace HRMS.Backend.Controllers
 {
@@ -32,15 +33,12 @@ namespace HRMS.Backend.Controllers
                 .FirstOrDefaultAsync(u => u.Username == request.Username);
 
             if (user == null || user.Password != request.Password)
-                // instead of: return Unauthorized("Invalid username or password");
                 return Unauthorized(new { message = "Invalid username or password" });
-
 
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = jwtSettings["Key"];
             var issuer = jwtSettings["Issuer"];
             var audience = jwtSettings["Audience"];
-            var expiryMinutesString = jwtSettings["ExpiryMinutes"];
 
             if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
                 return StatusCode(500, "Missing JWT configuration values.");
@@ -48,15 +46,13 @@ namespace HRMS.Backend.Controllers
             if (!int.TryParse(jwtSettings["ExpiryMinutes"], out int expiryMinutes))
                 return StatusCode(500, "Invalid or missing ExpiryMinutes in JWT settings.");
 
-
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim("organizationId", user.OrganizationId?.ToString() ?? "")
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), // Guid ok
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.Email ?? string.Empty),
+                new Claim(ClaimTypes.Role, user.Role ?? string.Empty),
+                new Claim("organizationId", user.OrganizationId?.ToString() ?? string.Empty)
             };
-
 
             var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
@@ -70,20 +66,13 @@ namespace HRMS.Backend.Controllers
 
             var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-            // Check role and return redirect info
             if (user.Role == "SuperAdmin")
             {
                 return Ok(new
                 {
                     Token = tokenString,
                     RedirectTo = "superadmin",
-                    User = new
-                    {
-                        user.Id,
-                        user.Email,
-                        user.FullName,
-                        user.Role
-                    }
+                    User = new { user.Id, user.Email, user.FullName, user.Role }
                 });
             }
             else if (user.Role == "Admin")
@@ -92,23 +81,16 @@ namespace HRMS.Backend.Controllers
                 {
                     Token = tokenString,
                     RedirectTo = "main",
-                    User = new
-                    {
-                        user.Id,
-                        user.Email,
-                        user.FullName,
-                        user.Role,
-                        user.OrganizationId
-                    }
+                    User = new { user.Id, user.Email, user.FullName, user.Role, user.OrganizationId }
                 });
             }
+
             return Ok(new
             {
                 Token = tokenString,
                 RedirectTo = "main",
                 User = new { user.Id, user.Email, user.FullName, user.Role, user.OrganizationId }
             });
-
         }
     }
 }

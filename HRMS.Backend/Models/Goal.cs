@@ -2,10 +2,10 @@ namespace HRMS.Backend.Models
 {
     public class Goal
     {
-        public int Id { get; set; }
-        public int EmployeeId { get; set; }
-        public int OrganizationId { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid OrganizationId { get; set; }
+        public Guid TenantId { get; set; }
 
         public string GoalTitle { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;

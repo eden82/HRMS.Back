@@ -7,34 +7,36 @@ namespace HRMS.Backend.Models
     public class User
     {
         [Key]
-        public int Id { get; set; }
+        [Column("id")]
+        public Guid Id { get; set; }
 
-        [Required]
-        public string FullName { get; set; } = null!;
+        [Column("full_name"), Required, MaxLength(200)]
+        public string FullName { get; set; } = string.Empty;
 
-        [Required]
-        public string Username { get; set; } = null!;
+        [Column("email"), MaxLength(255)]
+        public string? Email { get; set; }   // nullable to remove CS8601
 
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = null!;
+        [Column("phone_number"), MaxLength(50)]
+        public string? PhoneNumber { get; set; }  // nullable to remove CS8601
 
-        [Required]
-        public string PhoneNumber { get; set; } = null!;
+        [Column("password"), Required]
+        public string Password { get; set; } = string.Empty;
 
-        [Required]
-        public string Password { get; set; } = null!;
+        [Column("role"), MaxLength(50)]
+        public string Role { get; set; } = "User";
 
-        [Required]
-        public string Role { get; set; } = null!; // "SuperAdmin", "Admin", "Employee"
+        [Column("username"), Required, MaxLength(100)]
+        public string Username { get; set; } = string.Empty;
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public DateTime CreatedAt { get; set; }
-
-        public DateTime? UpdatedAt { get; set; }
-
-        // Only Admins have OrganizationId
-        public int? OrganizationId { get; set; }
+        // <<< CHANGED to Guid? to match controllers >>>
+        [Column("organization_id")]
+        public Guid? OrganizationId { get; set; }
         public Organization? Organization { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("updated_at")]
+        public DateTime? UpdatedAt { get; set; }
     }
 }

@@ -2,8 +2,8 @@ namespace HRMS.Backend.Models
 {
     public class TenantSetting
     {
-        public long Id { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid TenantId { get; set; }
 
         // jsonb -> nvarchar(max). Make it non-null by default.
         public string Settings { get; set; } = "{}";

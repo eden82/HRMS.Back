@@ -2,9 +2,9 @@ namespace HRMS.Backend.Models
 {
     public class PerformanceReview
     {
-        public int Id { get; set; }
-        public int EmployeeId { get; set; }
-        public int ReviewerId { get; set; }
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid ReviewerId { get; set; }
 
         public short TechnicalSkill { get; set; }
         public int Communication { get; set; }

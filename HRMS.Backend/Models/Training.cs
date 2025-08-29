@@ -2,9 +2,9 @@ namespace HRMS.Backend.Models
 {
     public class Training
     {
-        public int Id { get; set; }
-        public int OrganizationId { get; set; }
-        public int TenantId { get; set; }
+        public Guid Id { get; set; }
+        public Guid OrganizationId { get; set; }
+        public Guid TenantId { get; set; }
 
         public string Title { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
