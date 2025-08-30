@@ -33,8 +33,8 @@ namespace HRMS.Backend.Models
 
         // NEW: mandatory head linked to Employee (who must be a Manager)
         [Column("department_head_id")]
-        public Guid DepartmentHeadId { get; set; }
-        public Employee DepartmentHead { get; set; } = null!;
+        public Guid? DepartmentHeadId { get; set; }
+        public Employee? DepartmentHead { get; set; } = null!;
 
         [Column("parent_department_id")]
         public Guid? ParentDepartmentId { get; set; }

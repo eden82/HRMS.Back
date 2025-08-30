@@ -140,8 +140,9 @@ namespace HRMS.Backend.Data
                  .WithMany() // not adding back-collection
                  .HasForeignKey(x => new { x.DepartmentHeadId, x.TenantId })
                  .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
-                 .OnDelete(DeleteBehavior.Restrict);
-
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .IsRequired(false); 
+                 
                 // Uniques
                 e.HasIndex(x => new { x.OrganizationId, x.DepartmentName }).IsUnique();
                 e.HasIndex(x => new { x.OrganizationId, x.DepartmentCode })
@@ -164,11 +165,11 @@ namespace HRMS.Backend.Data
                 e.Property(x => x.DepartmentId).HasColumnName("department_id").IsRequired();
                 e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
                 e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
-                e.Property(x => x.RoleId).HasColumnName("role_id").IsRequired(); // NEW
+                e.Property(x => x.RoleId).HasColumnName("role_id").IsRequired();
 
                 // Required columns
                 e.Property(x => x.FirstName).HasColumnName("first_name").HasMaxLength(100).IsRequired();
-                e.Property(x => x.MiddleName).HasColumnName("middle_name").HasMaxLength(100).IsRequired();
+                // NOTE: Removed MiddleName mapping because model doesn't define it.
                 e.Property(x => x.LastName).HasColumnName("last_name").HasMaxLength(100).IsRequired();
 
                 e.Property(x => x.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
@@ -197,46 +198,37 @@ namespace HRMS.Backend.Data
                     .HasColumnType("datetime2(3)").HasDefaultValueSql("SYSUTCDATETIME()").IsRequired();
                 e.Property(x => x.TerminatedDate).HasColumnName("terminated_date").HasColumnType("datetime2(3)");
 
-                // JSON validity check (kept)
                 e.ToTable(t => t.HasCheckConstraint("CHK_emp_custom_fields_json",
                     "custom_fields IS NULL OR ISJSON(custom_fields) = 1"));
 
-                // Tenant
                 e.HasOne(x => x.Tenant)
                  .WithMany(t => t.Employees)
                  .HasForeignKey(x => x.TenantId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Organization (tenant-safe composite)
                 e.HasOne(x => x.Organization)
                  .WithMany(o => o.Employees)
                  .HasForeignKey(x => new { x.OrganizationId, x.TenantId })
                  .HasPrincipalKey(o => new { o.Id, o.TenantId })
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Department (tenant-safe composite)
                 e.HasOne(x => x.Department)
                  .WithMany(d => d.Employees)
                  .HasForeignKey(x => new { x.DepartmentId, x.OrganizationId, x.TenantId })
                  .HasPrincipalKey(d => new { d.Id, d.OrganizationId, d.TenantId })
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // NEW: Role FK (simple FK to roles.Id)
                 e.HasOne(x => x.Role)
-                 .WithMany() // we already use Role.Members for EmployeeRole; no extra nav needed
+                 .WithMany()
                  .HasForeignKey(x => x.RoleId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Remove all Manager relationships (deleted)
-
-                // Attendance (composite FK)
                 e.HasMany(x => x.Attendances)
                  .WithOne(a => a.Employee)
                  .HasForeignKey(a => new { a.EmployeeId, a.TenantId })
                  .HasPrincipalKey(x => new { x.EmployeeID, x.TenantId })
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // Indexes / uniques
                 e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
                 e.HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique();
                 e.HasIndex(x => new { x.OrganizationId, x.TenantId });

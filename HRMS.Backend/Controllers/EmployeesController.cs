@@ -1,42 +1,31 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
-using System;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
-    [Route("api/employee")]
-    [Produces("application/json")]
+    [Route("api/employees")]
     public class EmployeesController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public EmployeesController(AppDbContext context) => _context = context;
+
+        public EmployeesController(AppDbContext context)
+        {
+            _context = context;
+        }
 
         // GET: /api/employees
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<EmployeeDto>>> GetEmployees()
+        public async Task<ActionResult<IEnumerable<Employee>>> GetAll()
         {
             var list = await _context.Employees
                 .AsNoTracking()
-                .Select(e => new EmployeeDto
-                {
-                    Id = e.EmployeeID,
-                    FirstName = e.FirstName,
-                    MiddleName = e.MiddleName,
-                    LastName = e.LastName,
-                    Email = e.Email,
-                    PhoneNumber = e.PhoneNumber,
-                    DepartmentId = e.DepartmentId,
-                    OrganizationId = e.OrganizationId,
-                    TenantId = e.TenantId,
-                    RoleId = e.RoleId
-                })
                 .ToListAsync();
 
             return Ok(list);
@@ -44,140 +33,116 @@ namespace HRMS.Backend.Controllers
 
         // GET: /api/employees/{id}
         [HttpGet("{id:guid}")]
-        public async Task<ActionResult<EmployeeDto>> GetEmployee(Guid id)
+        public async Task<ActionResult<Employee>> GetById(Guid id)
         {
-            var e = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeID == id);
-            if (e is null) return NotFound();
+            var emp = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.EmployeeID == id);
 
-            return Ok(new EmployeeDto
-            {
-                Id = e.EmployeeID,
-                FirstName = e.FirstName,
-                MiddleName = e.MiddleName,
-                LastName = e.LastName,
-                Email = e.Email,
-                PhoneNumber = e.PhoneNumber,
-                DepartmentId = e.DepartmentId,
-                OrganizationId = e.OrganizationId,
-                TenantId = e.TenantId,
-                RoleId = e.RoleId
-            });
+            if (emp == null) return NotFound();
+            return Ok(emp);
         }
 
         // POST: /api/employees
         [HttpPost]
-        [Consumes("application/json")]
-        public async Task<ActionResult<EmployeeDto>> CreateEmployee([FromBody] EmployeeCreateUpdateDto dto)
+        public async Task<ActionResult<Employee>> Create([FromBody] Employee input)
         {
-            // Validate Department (derive org/tenant)
-            var dept = await _context.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == dto.DepartmentId);
-            if (dept is null) return BadRequest(new { message = "Invalid DepartmentId." });
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            // Validate Role exists
-            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
-            if (!roleExists) return BadRequest(new { message = "Invalid RoleId." });
+            // Ensure PK
+            if (input.EmployeeID == Guid.Empty)
+                input.EmployeeID = Guid.NewGuid();
 
-            var e = new Employee
+            // --- Basic uniqueness guards (per tenant) ---
+            // Email
+            if (!string.IsNullOrWhiteSpace(input.Email))
             {
-                EmployeeID = Guid.NewGuid(),
-                DepartmentId = dto.DepartmentId,
-                OrganizationId = dept.OrganizationId,
-                TenantId = dept.TenantId,
-                RoleId = dto.RoleId,
+                var emailClash = await _context.Employees
+                    .AnyAsync(e => e.TenantId == input.TenantId && e.Email == input.Email);
+                if (emailClash)
+                    return Conflict(new { message = "Email already exists for this tenant." });
+            }
 
-                FirstName = dto.FirstName.Trim(),
-                MiddleName = dto.MiddleName.Trim(),
-                LastName = dto.LastName.Trim(),
+            // EmployeeCode: generate if empty; enforce uniqueness per tenant
+            if (string.IsNullOrWhiteSpace(input.EmployeeCode))
+            {
+                input.EmployeeCode = await GenerateUniqueEmployeeCodeAsync(input.TenantId, input.FirstName, input.LastName);
+            }
+            else
+            {
+                var codeClash = await _context.Employees
+                    .AnyAsync(e => e.TenantId == input.TenantId && e.EmployeeCode == input.EmployeeCode);
+                if (codeClash)
+                    return Conflict(new { message = "Employee code already exists for this tenant." });
+            }
 
-                Email = dto.Email.Trim(),
-                PhoneNumber = dto.PhoneNumber.Trim(),
-                EmergencyContactName = dto.EmergencyContactName.Trim(),
-                EmergencyContactNumber = dto.EmergencyContactNumber.Trim(),
-
-                Gender = dto.Gender.Trim(),
-                Nationality = dto.Nationality.Trim(),
-                MaritalStatus = dto.MaritalStatus.Trim(),
-                Address = dto.Address.Trim(),
-
-                DateOfBirth = dto.DateOfBirth,
-                JobTitle = dto.JobTitle.Trim(),
-                EmployeeCode = dto.EmployeeCode.Trim(),
-                EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim(),
-                EmploymentType = dto.EmploymentType.Trim(),
-                PhotoUrl = dto.PhotoUrl.Trim(),
-                JoiningDate = dto.JoiningDate,
-
-                BankDetails = dto.BankDetails,
-                CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
-
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Employees.Add(e);
+            _context.Employees.Add(input);
             await _context.SaveChangesAsync();
 
-            var created = new EmployeeDto
-            {
-                Id = e.EmployeeID,
-                FirstName = e.FirstName,
-                MiddleName = e.MiddleName,
-                LastName = e.LastName,
-                Email = e.Email,
-                PhoneNumber = e.PhoneNumber,
-                DepartmentId = e.DepartmentId,
-                OrganizationId = e.OrganizationId,
-                TenantId = e.TenantId,
-                RoleId = e.RoleId
-            };
-
-            return CreatedAtAction(nameof(GetEmployee), new { id = created.Id }, created);
+            return CreatedAtAction(nameof(GetById), new { id = input.EmployeeID }, input);
         }
 
         // PUT: /api/employees/{id}
         [HttpPut("{id:guid}")]
-        [Consumes("application/json")]
-        public async Task<IActionResult> UpdateEmployee(Guid id, [FromBody] EmployeeCreateUpdateDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] Employee body)
         {
-            var e = await _context.Employees.FirstOrDefaultAsync(x => x.EmployeeID == id);
-            if (e is null) return NotFound();
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            var dept = await _context.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == dto.DepartmentId);
-            if (dept is null) return BadRequest(new { message = "Invalid DepartmentId." });
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeID == id);
+            if (emp == null) return NotFound();
 
-            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
-            if (!roleExists) return BadRequest(new { message = "Invalid RoleId." });
+            // If tenant/org/department/role changed, keep your existing business rules
+            emp.TenantId = body.TenantId;
+            emp.OrganizationId = body.OrganizationId;
+            emp.DepartmentId = body.DepartmentId;
+            emp.RoleId = body.RoleId;
 
-            e.DepartmentId = dto.DepartmentId;
-            e.OrganizationId = dept.OrganizationId;
-            e.TenantId = dept.TenantId;
-            e.RoleId = dto.RoleId;
+            // Personal / contact
+            emp.FirstName = body.FirstName;
+            emp.LastName = body.LastName;
+            emp.Email = body.Email;
+            emp.PhoneNumber = body.PhoneNumber;
+            emp.EmergencyContactName = body.EmergencyContactName;
+            emp.EmergencyContactNumber = body.EmergencyContactNumber;
+            emp.Gender = body.Gender;
+            emp.Nationality = body.Nationality;
+            emp.MaritalStatus = body.MaritalStatus;
+            emp.Address = body.Address;
+            emp.DateOfBirth = body.DateOfBirth;
 
-            e.FirstName = dto.FirstName.Trim();
-            e.MiddleName = dto.MiddleName.Trim();
-            e.LastName = dto.LastName.Trim();
+            // Job
+            emp.JobTitle = body.JobTitle;
+            emp.EmployeeEducationStatus = body.EmployeeEducationStatus;
+            emp.EmploymentType = body.EmploymentType;
+            emp.PhotoUrl = body.PhotoUrl;
+            emp.JoiningDate = body.JoiningDate;
 
-            e.Email = dto.Email.Trim();
-            e.PhoneNumber = dto.PhoneNumber.Trim();
-            e.EmergencyContactName = dto.EmergencyContactName.Trim();
-            e.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+            // Codes – enforce uniqueness per tenant if changed
+            if (!string.Equals(emp.EmployeeCode, body.EmployeeCode, StringComparison.Ordinal))
+            {
+                var newCode = body.EmployeeCode;
+                if (string.IsNullOrWhiteSpace(newCode))
+                {
+                    newCode = await GenerateUniqueEmployeeCodeAsync(emp.TenantId, emp.FirstName, emp.LastName);
+                }
+                else
+                {
+                    var clash = await _context.Employees.AnyAsync(e =>
+                        e.TenantId == emp.TenantId &&
+                        e.EmployeeCode == newCode &&
+                        e.EmployeeID != emp.EmployeeID);
+                    if (clash)
+                        return Conflict(new { message = "Employee code already exists for this tenant." });
+                }
+                emp.EmployeeCode = newCode;
+            }
 
-            e.Gender = dto.Gender.Trim();
-            e.Nationality = dto.Nationality.Trim();
-            e.MaritalStatus = dto.MaritalStatus.Trim();
-            e.Address = dto.Address.Trim();
+            // Other blobs/json
+            emp.BankDetails = body.BankDetails;
+            emp.CustomFields = body.CustomFields;
 
-            e.DateOfBirth = dto.DateOfBirth;
-            e.JobTitle = dto.JobTitle.Trim();
-            e.EmployeeCode = dto.EmployeeCode.Trim();
-            e.EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim();
-            e.EmploymentType = dto.EmploymentType.Trim();
-            e.PhotoUrl = dto.PhotoUrl.Trim();
-            e.JoiningDate = dto.JoiningDate;
-
-            e.BankDetails = dto.BankDetails;
-            e.CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields;
-            e.UpdatedAt = DateTime.UtcNow;
+            // Timestamps
+            emp.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -185,62 +150,35 @@ namespace HRMS.Backend.Controllers
 
         // DELETE: /api/employees/{id}
         [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> DeleteEmployee(Guid id)
+        public async Task<IActionResult> Delete(Guid id)
         {
-            var e = await _context.Employees.FirstOrDefaultAsync(x => x.EmployeeID == id);
-            if (e is null) return NotFound();
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeID == id);
+            if (emp == null) return NotFound();
 
-            _context.Employees.Remove(e);
+            _context.Employees.Remove(emp);
             await _context.SaveChangesAsync();
             return NoContent();
         }
-    }
 
-    // ===== DTOs =====
-    public sealed class EmployeeDto
-    {
-        public Guid Id { get; set; }
-        public Guid DepartmentId { get; set; }
-        public Guid OrganizationId { get; set; }
-        public Guid TenantId { get; set; }
-        public Guid RoleId { get; set; }
+        // --- Helpers ---
+        private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string? first, string? last)
+        {
+            // base: FIRSTLAST (letters only), fallback EMP
+            var baseRaw = new string($"{first}{last}".Where(char.IsLetter).ToArray());
+            if (string.IsNullOrWhiteSpace(baseRaw)) baseRaw = "EMP";
+            baseRaw = baseRaw.ToUpperInvariant();
+            if (baseRaw.Length > 6) baseRaw = baseRaw.Substring(0, 6);
 
-        public string FirstName { get; set; } = "";
-        public string MiddleName { get; set; } = "";
-        public string LastName { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string PhoneNumber { get; set; } = "";
-    }
+            // try until unique (Tenant-scoped)
+            string candidate;
+            var rnd = new Random();
+            do
+            {
+                var suffix = rnd.Next(100, 1000); // 100-999
+                candidate = $"{baseRaw}-{suffix}";
+            } while (await _context.Employees.AnyAsync(e => e.TenantId == tenantId && e.EmployeeCode == candidate));
 
-    public sealed class EmployeeCreateUpdateDto
-    {
-        // Required FKs
-        public Guid DepartmentId { get; set; }
-        public Guid RoleId { get; set; }
-
-        // Required fields (match model)
-        public string FirstName { get; set; } = "";
-        public string MiddleName { get; set; } = "";
-        public string LastName { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string PhoneNumber { get; set; } = "";
-        public string EmergencyContactName { get; set; } = "";
-        public string EmergencyContactNumber { get; set; } = "";
-        public string Gender { get; set; } = "";
-        public string Nationality { get; set; } = "";
-        public string MaritalStatus { get; set; } = "";
-        public string Address { get; set; } = "";
-
-        public DateTime DateOfBirth { get; set; }
-
-        public string JobTitle { get; set; } = "";
-        public string EmployeeCode { get; set; } = "";
-        public string EmployeeEducationStatus { get; set; } = "";
-        public string EmploymentType { get; set; } = "";
-        public string PhotoUrl { get; set; } = "";
-        public DateTime JoiningDate { get; set; }
-
-        public string BankDetails { get; set; } = "";
-        public string CustomFields { get; set; } = "{}";
+            return candidate;
+        }
     }
 }

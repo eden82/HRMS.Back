@@ -4,6 +4,7 @@ using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRMS.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250829190834_MakeDeptHeadOptional")]
+    partial class MakeDeptHeadOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -362,41 +365,16 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("address");
 
-                    b.Property<string>("BankAccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("bank_account_number");
-
                     b.Property<string>("BankDetails")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("bank_details");
-
-                    b.Property<string>("BenefitsEnrollment")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("benefits_enrollment");
-
-                    b.Property<string>("CertificationPath")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("certification_path");
-
-                    b.Property<string>("ContractFilePath")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("contract_file_path");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
-                        .HasColumnName("currency");
 
                     b.Property<string>("CustomFields")
                         .IsRequired()
@@ -481,6 +459,12 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("marital_status");
 
+                    b.Property<string>("MiddleName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("middle_name");
+
                     b.Property<string>("Nationality")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -490,17 +474,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
-
-                    b.Property<string>("PassportNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("passport_number");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("payment_method");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -514,30 +487,9 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(2083)")
                         .HasColumnName("photo_url");
 
-                    b.Property<string>("ResumePath")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("resume_path");
-
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("role_id");
-
-                    b.Property<string>("Salary")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("salary");
-
-                    b.Property<string>("ShiftDetails")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasColumnName("shift_details");
-
-                    b.Property<string>("TaxIdentificationNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("tax_identification_number");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier")
@@ -552,17 +504,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<string>("Username")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasColumnName("username");
-
-                    b.Property<string>("WorkLocation")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasColumnName("work_location");
 
                     b.HasKey("EmployeeID");
 

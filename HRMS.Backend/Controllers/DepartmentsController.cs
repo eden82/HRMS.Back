@@ -1,8 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HRMS.Backend.Models;
 using HRMS.Backend.Data;
-using System.Security.Cryptography;
+using HRMS.Backend.Models;
 
 namespace HRMS.Backend.Controllers
 {
@@ -23,12 +27,14 @@ namespace HRMS.Backend.Controllers
         {
             var departments = await _context.Departments
                 .AsNoTracking()
+                .Include(d => d.DepartmentHead) // so we can safely read name
                 .Select(d => new DepartmentDto
                 {
                     Id = d.Id,
                     OrganizationId = d.OrganizationId,
+                    TenantId = d.TenantId,
                     DepartmentName = d.DepartmentName,
-                    DepartmentHeadId = d.DepartmentHeadId,
+                    DepartmentHeadId = d.DepartmentHeadId, // may be null
                     DepartmentHeadName = d.DepartmentHead != null
                         ? (d.DepartmentHead.FirstName + " " + d.DepartmentHead.LastName).Trim()
                         : string.Empty,
@@ -56,8 +62,9 @@ namespace HRMS.Backend.Controllers
             {
                 Id = d.Id,
                 OrganizationId = d.OrganizationId,
+                TenantId = d.TenantId,
                 DepartmentName = d.DepartmentName,
-                DepartmentHeadId = d.DepartmentHeadId,
+                DepartmentHeadId = d.DepartmentHeadId, // may be null
                 DepartmentHeadName = d.DepartmentHead != null
                     ? (d.DepartmentHead.FirstName + " " + d.DepartmentHead.LastName).Trim()
                     : string.Empty,
@@ -76,8 +83,6 @@ namespace HRMS.Backend.Controllers
             // Required fields
             if (string.IsNullOrWhiteSpace(dto.DepartmentName))
                 ModelState.AddModelError(nameof(dto.DepartmentName), "Department name is required.");
-            if (!dto.DepartmentHeadId.HasValue || dto.DepartmentHeadId.Value == Guid.Empty)
-                ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head is required.");
 
             // Load org (derive tenant)
             var org = await _context.Organizations.AsNoTracking()
@@ -85,11 +90,10 @@ namespace HRMS.Backend.Controllers
             if (org == null)
                 ModelState.AddModelError(nameof(dto.OrganizationId), "Organization not found.");
 
-            // Parent validation (same org/tenant)
-            Department? parent = null;
+            // Parent validation (same org)
             if (dto.ParentDepartmentId.HasValue && dto.ParentDepartmentId.Value != Guid.Empty)
             {
-                parent = await _context.Departments.AsNoTracking()
+                var parent = await _context.Departments.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == dto.ParentDepartmentId.Value);
                 if (parent == null)
                     ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent department not found.");
@@ -97,7 +101,7 @@ namespace HRMS.Backend.Controllers
                     ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent must be in the same organization.");
             }
 
-            // Validate head belongs to same tenant/org and has Manager or HRAdmin role
+            // Head is OPTIONAL now — validate only if provided
             if (dto.DepartmentHeadId.HasValue && org != null)
             {
                 var head = await _context.Employees.AsNoTracking()
@@ -113,17 +117,15 @@ namespace HRMS.Backend.Controllers
                     if (head.OrganizationId != org.Id)
                         ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must belong to the same organization.");
 
-                    // Check role assignment
-                    var hasRequiredRole = await _context.EmployeeRoles
-                        .Include(er => er.Role)
-                        .AnyAsync(er =>
-                            er.EmployeeId == head.EmployeeID &&
-                            er.TenantId == head.TenantId &&
-                            (er.Role.Name == "Manager" || er.Role.Name == "HRAdmin"));
-
-                    if (!hasRequiredRole)
-                        ModelState.AddModelError(nameof(dto.DepartmentHeadId),
-                            "Department head must have either the 'Manager' or 'HRAdmin' role.");
+                    // Optional: require certain roles for head
+                    // var hasRequiredRole = await _context.EmployeeRoles
+                    //     .Include(er => er.Role)
+                    //     .AnyAsync(er =>
+                    //         er.EmployeeId == head.EmployeeID &&
+                    //         er.TenantId == head.TenantId &&
+                    //         (er.Role.Name == "Manager" || er.Role.Name == "HRAdmin"));
+                    // if (!hasRequiredRole)
+                    //     ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must have either the 'Manager' or 'HRAdmin' role.");
                 }
             }
 
@@ -152,7 +154,7 @@ namespace HRMS.Backend.Controllers
                 TenantId = org.TenantId,
                 DepartmentName = dto.DepartmentName.Trim(),
                 DepartmentCode = deptCode,
-                DepartmentHeadId = dto.DepartmentHeadId!.Value,
+                DepartmentHeadId = dto.DepartmentHeadId, // may be null
                 InitialEmployeeCount = dto.InitialEmployeeCount,
                 ParentDepartmentId = dto.ParentDepartmentId
             };
@@ -164,12 +166,15 @@ namespace HRMS.Backend.Controllers
             {
                 Id = department.Id,
                 OrganizationId = department.OrganizationId,
+                TenantId = department.TenantId,
                 DepartmentName = department.DepartmentName,
                 DepartmentHeadId = department.DepartmentHeadId,
-                DepartmentHeadName = await _context.Employees
-                    .Where(e => e.EmployeeID == department.DepartmentHeadId)
-                    .Select(e => (e.FirstName + " " + e.LastName).Trim())
-                    .FirstOrDefaultAsync() ?? string.Empty,
+                DepartmentHeadName = department.DepartmentHeadId.HasValue
+                    ? (await _context.Employees
+                        .Where(e => e.EmployeeID == department.DepartmentHeadId.Value)
+                        .Select(e => (e.FirstName + " " + e.LastName).Trim())
+                        .FirstOrDefaultAsync()) ?? string.Empty
+                    : string.Empty,
                 DepartmentCode = department.DepartmentCode,
                 InitialEmployeeCount = department.InitialEmployeeCount,
                 ParentDepartmentId = department.ParentDepartmentId
@@ -184,8 +189,6 @@ namespace HRMS.Backend.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.DepartmentName))
                 ModelState.AddModelError(nameof(dto.DepartmentName), "Department name is required.");
-            if (!dto.DepartmentHeadId.HasValue || dto.DepartmentHeadId.Value == Guid.Empty)
-                ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head is required.");
 
             var existing = await _context.Departments.FirstOrDefaultAsync(d => d.Id == id);
             if (existing == null) return NotFound();
@@ -208,7 +211,7 @@ namespace HRMS.Backend.Controllers
                     ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent must be in the same organization.");
             }
 
-            // Validate head + roles
+            // Head OPTIONAL — validate only if provided (or allow clearing to null)
             if (dto.DepartmentHeadId.HasValue && org != null)
             {
                 var head = await _context.Employees.AsNoTracking()
@@ -224,16 +227,7 @@ namespace HRMS.Backend.Controllers
                     if (head.OrganizationId != org.Id)
                         ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must belong to the same organization.");
 
-                    var hasRequiredRole = await _context.EmployeeRoles
-                        .Include(er => er.Role)
-                        .AnyAsync(er =>
-                            er.EmployeeId == head.EmployeeID &&
-                            er.TenantId == head.TenantId &&
-                            (er.Role.Name == "Manager" || er.Role.Name == "HRAdmin"));
-
-                    if (!hasRequiredRole)
-                        ModelState.AddModelError(nameof(dto.DepartmentHeadId),
-                            "Department head must have either the 'Manager' or 'HRAdmin' role.");
+                    // Optional role check as above
                 }
             }
 
@@ -262,7 +256,7 @@ namespace HRMS.Backend.Controllers
             existing.OrganizationId = org!.Id;
             existing.TenantId = org.TenantId;
             existing.DepartmentName = dto.DepartmentName.Trim();
-            existing.DepartmentHeadId = dto.DepartmentHeadId!.Value;
+            existing.DepartmentHeadId = dto.DepartmentHeadId; // may be null now
             existing.DepartmentCode = deptCode;
             existing.InitialEmployeeCount = dto.InitialEmployeeCount;
             existing.ParentDepartmentId = dto.ParentDepartmentId;
@@ -283,6 +277,7 @@ namespace HRMS.Backend.Controllers
             return NoContent();
         }
 
+        // ----- helpers -----
         private Task<string> GenerateUniqueDeptCodeAsync(Guid orgId, string name)
         {
             // base from name
@@ -307,13 +302,14 @@ namespace HRMS.Backend.Controllers
         }
     }
 
-    // DTOs for department (GUID-based)
+    // ===== DTOs (GUID-based) =====
     public sealed class DepartmentDto
     {
         public Guid Id { get; set; }
         public Guid OrganizationId { get; set; }
+        public Guid TenantId { get; set; }
         public string DepartmentName { get; set; } = null!;
-        public Guid DepartmentHeadId { get; set; }
+        public Guid? DepartmentHeadId { get; set; } // now optional
         public string DepartmentHeadName { get; set; } = string.Empty;
         public string? DepartmentCode { get; set; }
         public int InitialEmployeeCount { get; set; }
@@ -324,7 +320,7 @@ namespace HRMS.Backend.Controllers
     {
         public Guid OrganizationId { get; set; }
         public string DepartmentName { get; set; } = null!;
-        public Guid? DepartmentHeadId { get; set; } // required by controller validation
+        public Guid? DepartmentHeadId { get; set; } // optional
         public string? DepartmentCode { get; set; }
         public int InitialEmployeeCount { get; set; }
         public Guid? ParentDepartmentId { get; set; }
