@@ -161,79 +161,104 @@ namespace HRMS.Backend.Data
                 e.HasAlternateKey(x => new { x.EmployeeID, x.TenantId })
                  .HasName("AK_employees_id_tenant");
 
-                e.Property(x => x.EmployeeID).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
-                e.Property(x => x.DepartmentId).HasColumnName("department_id").IsRequired();
+                // FKs & columns
+                e.Property(x => x.EmployeeID)
+                 .HasColumnName("id")
+                 .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.DepartmentId).HasColumnName("department_id").IsRequired(false);   // ← now optional
                 e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
                 e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
                 e.Property(x => x.RoleId).HasColumnName("role_id").IsRequired();
 
-                // Required columns
-                e.Property(x => x.FirstName).HasColumnName("first_name").HasMaxLength(100).IsRequired();
-                // NOTE: Removed MiddleName mapping because model doesn't define it.
-                e.Property(x => x.LastName).HasColumnName("last_name").HasMaxLength(100).IsRequired();
+                // Auth
+                e.Property(x => x.Username).HasColumnName("username").HasMaxLength(100).IsRequired();
+                e.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
 
-                e.Property(x => x.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
-                e.Property(x => x.PhoneNumber).HasColumnName("phone_number").HasMaxLength(50).IsRequired();
-                e.Property(x => x.EmergencyContactName).HasColumnName("emergency_contact_name").HasMaxLength(200).IsRequired();
-                e.Property(x => x.EmergencyContactNumber).HasColumnName("emergency_contact_number").HasMaxLength(50).IsRequired();
+                // Required personal/contact fields
+                e.Property(x => x.FirstName).HasColumnName("first_name").HasMaxLength(100).IsRequired();
+                e.Property(x => x.LastName).HasColumnName("last_name").HasMaxLength(100).IsRequired();
                 e.Property(x => x.Gender).HasColumnName("gender").HasMaxLength(50).IsRequired();
                 e.Property(x => x.Nationality).HasColumnName("nationality").HasMaxLength(100).IsRequired();
                 e.Property(x => x.MaritalStatus).HasColumnName("marital_status").HasMaxLength(50).IsRequired();
                 e.Property(x => x.Address).HasColumnName("address").HasMaxLength(500).IsRequired();
                 e.Property(x => x.DateOfBirth).HasColumnName("date_of_birth").IsRequired();
+                e.Property(x => x.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
+                e.Property(x => x.PhoneNumber).HasColumnName("phone_number").HasMaxLength(50).IsRequired();
+                e.Property(x => x.EmergencyContactName).HasColumnName("emergency_contact_name").HasMaxLength(200).IsRequired();
+                e.Property(x => x.EmergencyContactNumber).HasColumnName("emergency_contact_number").HasMaxLength(50).IsRequired();
 
+                // Job
                 e.Property(x => x.JobTitle).HasColumnName("job_title").HasMaxLength(150).IsRequired();
-                e.Property(x => x.EmployeeCode).HasColumnName("employee_code").HasMaxLength(50).IsRequired();
                 e.Property(x => x.EmployeeEducationStatus).HasColumnName("employee_education_status").HasMaxLength(100).IsRequired();
                 e.Property(x => x.EmploymentType).HasColumnName("employee_type").HasMaxLength(50).IsRequired();
                 e.Property(x => x.PhotoUrl).HasColumnName("photo_url").HasMaxLength(2083).IsRequired();
                 e.Property(x => x.JoiningDate).HasColumnName("hire_date").IsRequired();
+                e.Property(x => x.EmployeeCode).HasColumnName("employee_code").HasMaxLength(50); // controller will ensure non-empty (auto-generate) and uniqueness
 
+                // Payroll / misc
                 e.Property(x => x.BankDetails).HasColumnName("bank_details").IsRequired();
                 e.Property(x => x.CustomFields).HasColumnName("custom_fields").IsRequired();
+                e.Property(x => x.BenefitsEnrollment).HasColumnName("benefits_enrollment").IsRequired(false); // ← optional
+                e.Property(x => x.ShiftDetails).HasColumnName("shift_details").IsRequired(false);             // ← optional
 
+                // Timestamps
                 e.Property(x => x.CreatedAt).HasColumnName("created_at")
                     .HasColumnType("datetime2(3)").HasDefaultValueSql("SYSUTCDATETIME()").IsRequired();
                 e.Property(x => x.UpdatedAt).HasColumnName("updated_at")
                     .HasColumnType("datetime2(3)").HasDefaultValueSql("SYSUTCDATETIME()").IsRequired();
                 e.Property(x => x.TerminatedDate).HasColumnName("terminated_date").HasColumnType("datetime2(3)");
 
+                // JSON validity check (kept)
                 e.ToTable(t => t.HasCheckConstraint("CHK_emp_custom_fields_json",
                     "custom_fields IS NULL OR ISJSON(custom_fields) = 1"));
 
+                // Relationships
+
+                // Tenant
                 e.HasOne(x => x.Tenant)
                  .WithMany(t => t.Employees)
                  .HasForeignKey(x => x.TenantId)
                  .OnDelete(DeleteBehavior.Restrict);
 
+                // Organization (tenant-safe composite)
                 e.HasOne(x => x.Organization)
                  .WithMany(o => o.Employees)
                  .HasForeignKey(x => new { x.OrganizationId, x.TenantId })
                  .HasPrincipalKey(o => new { o.Id, o.TenantId })
                  .OnDelete(DeleteBehavior.Restrict);
 
+                // Department (tenant-safe composite) — optional now
                 e.HasOne(x => x.Department)
                  .WithMany(d => d.Employees)
                  .HasForeignKey(x => new { x.DepartmentId, x.OrganizationId, x.TenantId })
                  .HasPrincipalKey(d => new { d.Id, d.OrganizationId, d.TenantId })
                  .OnDelete(DeleteBehavior.Restrict);
 
+                // Role
                 e.HasOne(x => x.Role)
-                 .WithMany()
+                 .WithMany() // you already map EmployeeRole separately
                  .HasForeignKey(x => x.RoleId)
                  .OnDelete(DeleteBehavior.Restrict);
 
+                // Attendance (composite FK)
                 e.HasMany(x => x.Attendances)
                  .WithOne(a => a.Employee)
                  .HasForeignKey(a => new { a.EmployeeId, a.TenantId })
                  .HasPrincipalKey(x => new { x.EmployeeID, x.TenantId })
                  .OnDelete(DeleteBehavior.Cascade);
 
+                // Indexes / uniques
                 e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
-                e.HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique();
+                e.HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique()
+                 .HasFilter("[employee_code] IS NOT NULL");
+
+                e.HasIndex(x => new { x.TenantId, x.Username }).IsUnique(); // ← prevent duplicate usernames per tenant
+
                 e.HasIndex(x => new { x.OrganizationId, x.TenantId });
                 e.HasIndex(x => new { x.DepartmentId, x.OrganizationId, x.TenantId });
             });
+
 
             /* ===== ATTENDANCE (GUID + composite to Employee) ===== */
             model.Entity<Attendance>(a =>
@@ -498,7 +523,7 @@ namespace HRMS.Backend.Data
             });
 
 
-            // ===== ASSETS (GUID) =====
+            
             // ===== ASSETS (GUID) =====
             model.Entity<Asset>(a =>
             {
