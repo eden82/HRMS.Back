@@ -1,42 +1,33 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Routing;
 using System.Text;
 using HRMS.Backend.Data;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Add CORS
+// ===== CORS (single registration) =====
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy => policy
-            .WithOrigins("http://localhost:5173") // your frontend port
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins("http://localhost:5173") // your frontend
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+    // .AllowCredentials() // uncomment only if you actually use cookies
+    );
 });
 
+// Controllers & OpenAPI
 builder.Services.AddControllers();
-// Add services to the container.
-
 builder.Services.AddOpenApi();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend",
-        builder => builder
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod());
-});
-
-
+// DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// ===== JWT Auth =====
 var jwtKey = builder.Configuration["JwtSettings:Key"];
-
 if (string.IsNullOrEmpty(jwtKey))
     throw new Exception("JWT Key not found in configuration.");
 
@@ -59,38 +50,63 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-
 builder.Services.AddAuthorization();
-
-
 
 var app = builder.Build();
 
+#if DEBUG
+app.MapGet("/_routes", (IEnumerable<EndpointDataSource> sources) =>
+{
+    var list = new List<object>();
 
-// Configure the HTTP request pipeline.
+    foreach (var src in sources)
+    {
+        foreach (var ep in src.Endpoints.OfType<RouteEndpoint>())
+        {
+            var httpMeta = ep.Metadata.OfType<IHttpMethodMetadata>().FirstOrDefault();
+            var methods = httpMeta?.HttpMethods ?? Array.Empty<string>();
+
+            list.Add(new
+            {
+                Template = ep.RoutePattern.RawText,
+                Methods = string.Join(",", methods)
+            });
+        }
+    }
+
+    // Order by template for readability
+    list = list.OrderBy(x => x.GetType().GetProperty("Template")!.GetValue(x)).ToList();
+    return Results.Json(list);
+});
+#endif
+
+
+// ===== Pipeline =====
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
+
+// CORS must run before auth/authorization and before MapControllers
 app.UseCors("AllowFrontend");
 
+app.UseAuthentication();
+app.UseAuthorization();
 
+app.MapControllers();
 
+// (Optional sample endpoint)
 var summaries = new[]
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+    "Freezing","Bracing","Chilly","Cool","Mild","Warm","Balmy","Hot","Sweltering","Scorching"
 };
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
+    var forecast = Enumerable.Range(1, 5).Select(index =>
+        new WeatherForecast(
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
             Random.Shared.Next(-20, 55),
             summaries[Random.Shared.Next(summaries.Length)]
@@ -99,8 +115,6 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
-
-
 
 app.Run();
 

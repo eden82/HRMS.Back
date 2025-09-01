@@ -30,7 +30,7 @@ namespace HRMS.Backend.Controllers
                     o.Id,
                     o.TenantId,
                     o.Name,
-                    o.Domain,                  // Domain is required, no null-coalescing
+                    o.Domain ?? string.Empty,                  // Domain is required, no null-coalescing
                     o.Industry,
                     o.Location,
                     o.LogoUrl,
@@ -56,7 +56,7 @@ namespace HRMS.Backend.Controllers
                 o.Id,
                 o.TenantId,
                 o.Name,
-                o.Domain,                     // Domain is required, no null-coalescing
+                o.Domain ?? string.Empty,                     // Domain is required, no null-coalescing
                 o.Industry,
                 o.Location,
                 o.LogoUrl,

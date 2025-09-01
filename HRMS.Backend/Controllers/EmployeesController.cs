@@ -1,8 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using HRMS.Backend.Data;
+using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,172 +13,277 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/employees")]
+    [Produces("application/json")]
     public class EmployeesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        public EmployeesController(AppDbContext context) => _context = context;
 
-        public EmployeesController(AppDbContext context)
+        // POST: api/employees
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] EmployeeCreateDto dto)
         {
-            _context = context;
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            // Basic FK existence checks
+            var tenantExists = await _context.Tenants.AnyAsync(t => t.Id == dto.TenantId);
+            if (!tenantExists) return BadRequest($"Tenant {dto.TenantId} not found.");
+
+            var org = await _context.Organizations.AsNoTracking()
+                         .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+            if (org is null) return BadRequest("Organization not found in the specified tenant.");
+
+            if (dto.DepartmentId.HasValue)
+            {
+                var deptOk = await _context.Departments.AnyAsync(d =>
+                    d.Id == dto.DepartmentId.Value &&
+                    d.OrganizationId == dto.OrganizationId &&
+                    d.TenantId == dto.TenantId);
+                if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
+            }
+
+            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
+            if (!roleExists) return BadRequest($"Role {dto.RoleId} not found.");
+
+            // Uniqueness checks (per tenant)
+            var emailClash = await _context.Employees.AnyAsync(e => e.TenantId == dto.TenantId && e.Email == dto.Email);
+            if (emailClash) return Conflict(new { message = "Email already exists in tenant." });
+
+            // Username unique per tenant
+            var username = dto.Username.Trim();
+            var usernameClash = await _context.Employees.AnyAsync(e => e.TenantId == dto.TenantId && e.Username == username);
+            if (usernameClash) return Conflict(new { message = "Username already exists in tenant." });
+
+            // EmployeeCode: generate if null/empty; ensure uniqueness per tenant
+            var employeeCode = string.IsNullOrWhiteSpace(dto.EmployeeCode)
+                ? await GenerateUniqueEmployeeCodeAsync(dto.TenantId, dto.FirstName, dto.LastName)
+                : dto.EmployeeCode!.Trim().ToUpperInvariant();
+
+            if (!string.IsNullOrWhiteSpace(dto.EmployeeCode))
+            {
+                var codeClash = await _context.Employees.AnyAsync(e => e.TenantId == dto.TenantId && e.EmployeeCode == employeeCode);
+                if (codeClash) return Conflict(new { message = "Employee code already exists in tenant." });
+            }
+
+            var entity = new Employee
+            {
+                EmployeeID = Guid.NewGuid(),
+                TenantId = dto.TenantId,
+                OrganizationId = dto.OrganizationId,
+                DepartmentId = dto.DepartmentId,      // nullable OK
+                RoleId = dto.RoleId,
+
+                FirstName = dto.FirstName.Trim(),
+                LastName = dto.LastName.Trim(),
+                DateOfBirth = dto.DateOfBirth,
+                Gender = dto.Gender.Trim(),
+                Nationality = dto.Nationality.Trim(),
+                MaritalStatus = dto.MaritalStatus.Trim(),
+
+                Email = dto.Email.Trim(),
+                PhoneNumber = dto.PhoneNumber.Trim(),
+                Address = dto.Address.Trim(),
+                EmergencyContactName = dto.EmergencyContactName.Trim(),
+                EmergencyContactNumber = dto.EmergencyContactNumber.Trim(),
+
+                JobTitle = dto.JobTitle.Trim(),
+                EmploymentType = dto.EmploymentType.Trim(),
+                EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim(),
+                PhotoUrl = dto.PhotoUrl.Trim(),
+                JoiningDate = dto.JoiningDate,
+
+                EmployeeCode = employeeCode,
+                Username = username,
+                PasswordHash = HashPassword(dto.Password),
+
+                BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails,
+                CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
+                BenefitsEnrollment = dto.BenefitsEnrollment,
+                ShiftDetails = dto.ShiftDetails,
+
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Employees.Add(entity);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetById), new { id = entity.EmployeeID }, new { entity.EmployeeID });
         }
 
-        // GET: /api/employees
+        // GET: api/employees
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Employee>>> GetAll()
+        public async Task<ActionResult<IEnumerable<object>>> GetAll()
         {
             var list = await _context.Employees
                 .AsNoTracking()
+                .Select(e => new
+                {
+                    e.EmployeeID,
+                    e.FirstName,
+                    e.LastName,
+                    e.Email,
+                    e.EmployeeCode,
+                    e.OrganizationId,
+                    e.DepartmentId,
+                    e.TenantId,
+                    e.RoleId
+                })
                 .ToListAsync();
 
             return Ok(list);
         }
 
-        // GET: /api/employees/{id}
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<Employee>> GetById(Guid id)
-        {
-            var emp = await _context.Employees
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.EmployeeID == id);
-
-            if (emp == null) return NotFound();
-            return Ok(emp);
-        }
-
-        // POST: /api/employees
-        [HttpPost]
-        public async Task<ActionResult<Employee>> Create([FromBody] Employee input)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            // Ensure PK
-            if (input.EmployeeID == Guid.Empty)
-                input.EmployeeID = Guid.NewGuid();
-
-            // --- Basic uniqueness guards (per tenant) ---
-            // Email
-            if (!string.IsNullOrWhiteSpace(input.Email))
-            {
-                var emailClash = await _context.Employees
-                    .AnyAsync(e => e.TenantId == input.TenantId && e.Email == input.Email);
-                if (emailClash)
-                    return Conflict(new { message = "Email already exists for this tenant." });
-            }
-
-            // EmployeeCode: generate if empty; enforce uniqueness per tenant
-            if (string.IsNullOrWhiteSpace(input.EmployeeCode))
-            {
-                input.EmployeeCode = await GenerateUniqueEmployeeCodeAsync(input.TenantId, input.FirstName, input.LastName);
-            }
-            else
-            {
-                var codeClash = await _context.Employees
-                    .AnyAsync(e => e.TenantId == input.TenantId && e.EmployeeCode == input.EmployeeCode);
-                if (codeClash)
-                    return Conflict(new { message = "Employee code already exists for this tenant." });
-            }
-
-            _context.Employees.Add(input);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetById), new { id = input.EmployeeID }, input);
-        }
-
-        // PUT: /api/employees/{id}
-        [HttpPut("{id:guid}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] Employee body)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeID == id);
-            if (emp == null) return NotFound();
-
-            // If tenant/org/department/role changed, keep your existing business rules
-            emp.TenantId = body.TenantId;
-            emp.OrganizationId = body.OrganizationId;
-            emp.DepartmentId = body.DepartmentId;
-            emp.RoleId = body.RoleId;
-
-            // Personal / contact
-            emp.FirstName = body.FirstName;
-            emp.LastName = body.LastName;
-            emp.Email = body.Email;
-            emp.PhoneNumber = body.PhoneNumber;
-            emp.EmergencyContactName = body.EmergencyContactName;
-            emp.EmergencyContactNumber = body.EmergencyContactNumber;
-            emp.Gender = body.Gender;
-            emp.Nationality = body.Nationality;
-            emp.MaritalStatus = body.MaritalStatus;
-            emp.Address = body.Address;
-            emp.DateOfBirth = body.DateOfBirth;
-
-            // Job
-            emp.JobTitle = body.JobTitle;
-            emp.EmployeeEducationStatus = body.EmployeeEducationStatus;
-            emp.EmploymentType = body.EmploymentType;
-            emp.PhotoUrl = body.PhotoUrl;
-            emp.JoiningDate = body.JoiningDate;
-
-            // Codes – enforce uniqueness per tenant if changed
-            if (!string.Equals(emp.EmployeeCode, body.EmployeeCode, StringComparison.Ordinal))
-            {
-                var newCode = body.EmployeeCode;
-                if (string.IsNullOrWhiteSpace(newCode))
-                {
-                    newCode = await GenerateUniqueEmployeeCodeAsync(emp.TenantId, emp.FirstName, emp.LastName);
-                }
-                else
-                {
-                    var clash = await _context.Employees.AnyAsync(e =>
-                        e.TenantId == emp.TenantId &&
-                        e.EmployeeCode == newCode &&
-                        e.EmployeeID != emp.EmployeeID);
-                    if (clash)
-                        return Conflict(new { message = "Employee code already exists for this tenant." });
-                }
-                emp.EmployeeCode = newCode;
-            }
-
-            // Other blobs/json
-            emp.BankDetails = body.BankDetails;
-            emp.CustomFields = body.CustomFields;
-
-            // Timestamps
-            emp.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        // DELETE: /api/employees/{id}
+        // DELETE: api/employees/{id}
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeID == id);
-            if (emp == null) return NotFound();
+            var e = await _context.Employees.FindAsync(id);
+            if (e == null) return NotFound();
 
-            _context.Employees.Remove(emp);
+            _context.Employees.Remove(e);
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // --- Helpers ---
-        private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string? first, string? last)
-        {
-            // base: FIRSTLAST (letters only), fallback EMP
-            var baseRaw = new string($"{first}{last}".Where(char.IsLetter).ToArray());
-            if (string.IsNullOrWhiteSpace(baseRaw)) baseRaw = "EMP";
-            baseRaw = baseRaw.ToUpperInvariant();
-            if (baseRaw.Length > 6) baseRaw = baseRaw.Substring(0, 6);
 
-            // try until unique (Tenant-scoped)
+        // GET: api/employees/{id}
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var e = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeID == id);
+            if (e == null) return NotFound();
+            return Ok(e); // or map to a read DTO if you prefer
+        }
+
+        // PUT: api/employees/{id}
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] EmployeeUpdateDto dto)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (id != dto.EmployeeId) return BadRequest("Employee ID mismatch.");
+
+            var e = await _context.Employees.FirstOrDefaultAsync(x => x.EmployeeID == id);
+            if (e is null) return NotFound();
+
+            // FK existence checks (same as create)
+            var org = await _context.Organizations.AsNoTracking()
+                         .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+            if (org is null) return BadRequest("Organization not found in the specified tenant.");
+
+            if (dto.DepartmentId.HasValue)
+            {
+                var deptOk = await _context.Departments.AnyAsync(d =>
+                    d.Id == dto.DepartmentId.Value &&
+                    d.OrganizationId == dto.OrganizationId &&
+                    d.TenantId == dto.TenantId);
+                if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
+            }
+
+            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
+            if (!roleExists) return BadRequest($"Role {dto.RoleId} not found.");
+
+            // Uniqueness checks on change
+            if (!string.Equals(e.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                var emailClash = await _context.Employees.AnyAsync(x =>
+                    x.TenantId == dto.TenantId && x.Email == dto.Email && x.EmployeeID != e.EmployeeID);
+                if (emailClash) return Conflict(new { message = "Email already exists in tenant." });
+            }
+
+            var newUsername = dto.Username.Trim();
+            if (!string.Equals(e.Username, newUsername, StringComparison.Ordinal))
+            {
+                var usernameClash = await _context.Employees.AnyAsync(x =>
+                    x.TenantId == dto.TenantId && x.Username == newUsername && x.EmployeeID != e.EmployeeID);
+                if (usernameClash) return Conflict(new { message = "Username already exists in tenant." });
+            }
+
+            string? newCode = dto.EmployeeCode;
+            if (string.IsNullOrWhiteSpace(newCode))
+            {
+                // keep existing; if empty, generate
+                if (string.IsNullOrWhiteSpace(e.EmployeeCode))
+                    e.EmployeeCode = await GenerateUniqueEmployeeCodeAsync(dto.TenantId, dto.FirstName, dto.LastName);
+            }
+            else
+            {
+                newCode = newCode.Trim().ToUpperInvariant();
+                if (!string.Equals(e.EmployeeCode, newCode, StringComparison.Ordinal))
+                {
+                    var codeClash = await _context.Employees.AnyAsync(x =>
+                        x.TenantId == dto.TenantId && x.EmployeeCode == newCode && x.EmployeeID != e.EmployeeID);
+                    if (codeClash) return Conflict(new { message = "Employee code already exists in tenant." });
+                    e.EmployeeCode = newCode;
+                }
+            }
+
+            // Apply changes
+            e.TenantId = dto.TenantId;
+            e.OrganizationId = dto.OrganizationId;
+            e.DepartmentId = dto.DepartmentId;
+            e.RoleId = dto.RoleId;
+
+            e.Username = newUsername;
+            if (!string.IsNullOrWhiteSpace(dto.Password))
+                e.PasswordHash = HashPassword(dto.Password);
+
+            e.FirstName = dto.FirstName.Trim();
+            e.LastName = dto.LastName.Trim();
+            e.DateOfBirth = dto.DateOfBirth;
+            e.Gender = dto.Gender.Trim();
+            e.Nationality = dto.Nationality.Trim();
+            e.MaritalStatus = dto.MaritalStatus.Trim();
+
+            e.Email = dto.Email.Trim();
+            e.PhoneNumber = dto.PhoneNumber.Trim();
+            e.Address = dto.Address.Trim();
+            e.EmergencyContactName = dto.EmergencyContactName.Trim();
+            e.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+
+            e.JobTitle = dto.JobTitle.Trim();
+            e.EmploymentType = dto.EmploymentType.Trim();
+            e.EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim();
+            e.PhotoUrl = dto.PhotoUrl.Trim();
+            e.JoiningDate = dto.JoiningDate;
+
+            e.BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails;
+            e.CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields;
+            e.BenefitsEnrollment = dto.BenefitsEnrollment;
+            e.ShiftDetails = dto.ShiftDetails;
+
+            e.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // ===== Helpers =====
+        private static string HashPassword(string password)
+        {
+            // Simple SHA256 example (replace with BCrypt/ASP.NET Identity hasher if you prefer)
+            var data = Encoding.UTF8.GetBytes(password);
+            var hash = SHA256.HashData(data);
+            return Convert.ToHexString(hash); // uppercase hex
+        }
+
+        private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)
+        {
+            // e.g., AIKO-### from name; ensure uniqueness per tenant
+            var basePart = new string($"{firstName}{lastName}".Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+            if (basePart.Length < 4) basePart = (basePart + "XXXX").Substring(0, 4);
+            else basePart = basePart.Substring(0, Math.Min(6, basePart.Length));
+
             string candidate;
-            var rnd = new Random();
+            var rnd = RandomNumberGenerator.Create();
             do
             {
-                var suffix = rnd.Next(100, 1000); // 100-999
-                candidate = $"{baseRaw}-{suffix}";
-            } while (await _context.Employees.AnyAsync(e => e.TenantId == tenantId && e.EmployeeCode == candidate));
+                var bytes = new byte[2];
+                rnd.GetBytes(bytes);
+                var suffix = (BitConverter.ToUInt16(bytes, 0) % 900 + 100); // 100-999
+                candidate = $"{basePart}-{suffix}";
+            }
+            while (await _context.Employees.AnyAsync(e => e.TenantId == tenantId && e.EmployeeCode == candidate));
 
             return candidate;
         }

@@ -10,8 +10,9 @@ using HRMS.Backend.Models;
 
 namespace HRMS.Backend.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/departments")]
+    [Produces("application/json")]
     public class DepartmentsController : ControllerBase
     {
         private readonly AppDbContext _context;

@@ -265,39 +265,46 @@ namespace HRMS.Backend.Data
             {
                 a.ToTable("attendance");
                 a.HasKey(x => x.Id);
-                a.Property(x => x.Id).HasColumnName("Id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                a.Property(x => x.Id)
+                 .HasColumnName("Id")
+                 .HasDefaultValueSql("NEWSEQUENTIALID()");
 
                 a.Property(x => x.EmployeeId).HasColumnName("employee_id");
                 a.Property(x => x.TenantId).HasColumnName("tenant_id");
-
+                a.Property(x => x.AttendanceDate).HasColumnName("attendance_date").HasColumnType("date");
                 a.Property(x => x.ClockIn).HasColumnName("clock_in").HasColumnType("datetime2(3)");
                 a.Property(x => x.ClockOut).HasColumnName("clock_out").HasColumnType("datetime2(3)");
-                a.Property(x => x.AttendanceDate).HasColumnName("attendance_date").HasColumnType("date");
                 a.Property(x => x.Status).HasColumnName("status").HasMaxLength(50);
                 a.Property(x => x.Location).HasColumnName("location");
-                a.Property(x => x.IpAddress).HasColumnName("ip_address");
+                a.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(45);
                 a.Property(x => x.ShiftName).HasColumnName("shift_name");
                 a.Property(x => x.Source).HasColumnName("source");
                 a.Property(x => x.ExceptionNote).HasColumnName("exception_note");
 
-                // Composite FK -> Employee AK (EmployeeID, TenantId)
+                // Composite FK -> Employee (EmployeeID, TenantId)
                 a.HasOne(x => x.Employee)
                  .WithMany(e => e.Attendances)
                  .HasForeignKey(x => new { x.EmployeeId, x.TenantId })
                  .HasPrincipalKey(e => new { e.EmployeeID, e.TenantId })
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // Optional direct Tenant FK (keep if Attendance has Tenant nav)
+                // Tenant FK
                 a.HasOne(x => x.Tenant)
                  .WithMany(t => t.Attendances)
                  .HasForeignKey(x => x.TenantId)
                  .OnDelete(DeleteBehavior.Restrict);
 
+                // Uniqueness: one row per employee per date
                 a.HasIndex(x => new { x.EmployeeId, x.TenantId, x.AttendanceDate })
-                 .HasDatabaseName("IX_attendance_employee_id_tenant_id_attendance_date");
+                 .IsUnique()
+                 .HasDatabaseName("UX_attendance_employee_tenant_date");
+
+                // Helpful secondary index
                 a.HasIndex(x => new { x.TenantId, x.AttendanceDate })
-                 .HasDatabaseName("IX_attendance_tenant_id_attendance_date");
+                 .HasDatabaseName("IX_attendance_tenant_date");
             });
+
 
             // ===== ROLES =====
             model.Entity<Role>(e =>

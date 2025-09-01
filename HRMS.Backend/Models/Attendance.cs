@@ -9,16 +9,21 @@ namespace HRMS.Backend.Models
     {
         [Key]
         [Column("Id")]
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
 
+        // Composite FK -> Employee (EmployeeID, TenantId)
+        [Required]
         [Column("employee_id")]
         public Guid EmployeeId { get; set; }
 
+        [Required]
         [Column("tenant_id")]
         public Guid TenantId { get; set; }
 
+        // We store as datetime(date) in SQL; controller will make sure date portion is used
+        [Required]
         [Column("attendance_date", TypeName = "date")]
-        public DateTime? AttendanceDate { get; set; }
+        public DateTime AttendanceDate { get; set; }
 
         [Column("clock_in")]
         public DateTime? ClockIn { get; set; }
@@ -26,31 +31,28 @@ namespace HRMS.Backend.Models
         [Column("clock_out")]
         public DateTime? ClockOut { get; set; }
 
-        [Column("status")]
         [MaxLength(50)]
-        public string? Status { get; set; }
+        [Column("status")]
+        public string? Status { get; set; }  // e.g., Present, Absent, Late, etc.
 
         [Column("location")]
-        [MaxLength(200)]
         public string? Location { get; set; }
 
         [Column("shift_name")]
-        [MaxLength(100)]
         public string? ShiftName { get; set; }
 
         [Column("source")]
-        [MaxLength(50)]
-        public string? Source { get; set; }
+        public string? Source { get; set; }  // e.g., Web, Mobile, Kiosk
 
+        [MaxLength(45)]
         [Column("ip_address")]
-        [MaxLength(50)]
-        public string? IpAddress { get; set; }
+        public string? IpAddress { get; set; } // IPv4/IPv6
 
         [Column("exception_note")]
         public string? ExceptionNote { get; set; }
 
-        // Navigation properties (ensure Employee and Tenant are in the same namespace)
-        public Employee? Employee { get; set; }
-        public Tenant? Tenant { get; set; }
+        // Navs
+        public Employee Employee { get; set; } = null!;
+        public Tenant Tenant { get; set; } = null!;
     }
 }
