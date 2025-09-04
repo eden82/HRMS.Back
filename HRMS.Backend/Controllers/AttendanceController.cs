@@ -1,242 +1,388 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using HRMS.Backend.Data;
-using HRMS.Backend.DTOs;
-using HRMS.Backend.Models;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Data;
+using HRMS.Backend.Models;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
-    [Route("api/attendance")]
+    [Route("api/[controller]")]
     public class AttendanceController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public AttendanceController(AppDbContext context) => _context = context;
 
-        // GET: /api/attendance
+        public AttendanceController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/attendance
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AttendanceDto>>> GetAll()
         {
-            var rows = await _context.Attendances.AsNoTracking()
-                .OrderByDescending(a => a.AttendanceDate)
-                .Take(500) // safety cap; adjust as you like
+            var list = await _context.Attendances
+                .AsNoTracking()
+                .Select(a => new AttendanceDto
+                {
+                    Id = a.Id,
+                    EmployeeId = a.EmployeeId,
+                    TenantId = a.TenantId,
+                    AttendanceDate = a.AttendanceDate,
+                    ClockIn = a.ClockIn,
+                    ClockOut = a.ClockOut,
+                    Status = a.Status,
+                    Location = a.Location,
+                    ShiftName = a.ShiftName,
+                    Source = a.Source,
+                    IpAddress = a.IpAddress,
+                    ExceptionNote = a.ExceptionNote,
+                    TotalHours = a.ClockIn.HasValue && a.ClockOut.HasValue
+                        ? (a.ClockOut.Value - a.ClockIn.Value).TotalHours
+                        : (double?)null
+                })
                 .ToListAsync();
 
-            return Ok(rows.Select(Map));
+            return Ok(list);
         }
 
-        // GET: /api/attendance/{id}
+        // GET: api/attendance/{id}
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<AttendanceDto>> GetById(Guid id)
         {
             var a = await _context.Attendances.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
             if (a == null) return NotFound();
-            return Ok(Map(a));
+
+            return Ok(new AttendanceDto
+            {
+                Id = a.Id,
+                EmployeeId = a.EmployeeId,
+                TenantId = a.TenantId,
+                AttendanceDate = a.AttendanceDate,
+                ClockIn = a.ClockIn,
+                ClockOut = a.ClockOut,
+                Status = a.Status,
+                Location = a.Location,
+                ShiftName = a.ShiftName,
+                Source = a.Source,
+                IpAddress = a.IpAddress,
+                ExceptionNote = a.ExceptionNote,
+                TotalHours = a.ClockIn.HasValue && a.ClockOut.HasValue
+                    ? (a.ClockOut.Value - a.ClockIn.Value).TotalHours
+                    : (double?)null
+            });
         }
 
-        // POST: /api/attendance  (create arbitrary row, optionally with ClockIn)
+        // POST: api/attendance
         [HttpPost]
-        public async Task<ActionResult<AttendanceDto>> Create([FromBody] AttendanceCreateDto dto)
+        public async Task<ActionResult<AttendanceDto>> Create([FromBody] AttendanceCreateUpdateDto input)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (input == null) return BadRequest("Body required.");
+            if (input.EmployeeId == Guid.Empty) return BadRequest("EmployeeId is required.");
 
-            // validate employee exists in tenant
-            var empExists = await _context.Employees
-                .AnyAsync(e => e.EmployeeID == dto.EmployeeId && e.TenantId == dto.TenantId);
-            if (!empExists)
-                return BadRequest("Employee not found in the specified tenant.");
+            // Load employee for org/tenant linkage
+            var emp = await _context.Employees.AsNoTracking()
+                         .FirstOrDefaultAsync(e => e.EmployeeID == input.EmployeeId);
+            if (emp == null) return BadRequest("Employee not found.");
 
-            var date = (dto.AttendanceDate ?? DateTime.UtcNow.Date).Date;
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
-            // Enforce 1 record per employee per date (if you need multiple, remove this)
-            var exists = await _context.Attendances
-                .AnyAsync(a => a.EmployeeId == dto.EmployeeId && a.TenantId == dto.TenantId && a.AttendanceDate == date);
-            if (exists)
-                return Conflict(new { message = "Attendance for this employee and date already exists." });
+            var tz = GetTimeZone(settings.TimeZone);
+            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            var attDate = input.AttendanceDate?.Date ?? nowLocal.Date;
 
-            var row = new Attendance
+            var entity = new Attendance
             {
                 Id = Guid.NewGuid(),
-                EmployeeId = dto.EmployeeId,
-                TenantId = dto.TenantId,
-                AttendanceDate = date,
-                ClockIn = dto.ClockIn ?? null,
-                Status = dto.Status,
-                Location = dto.Location,
-                ShiftName = dto.ShiftName,
-                Source = dto.Source,
-                IpAddress = dto.IpAddress,
-                ExceptionNote = dto.ExceptionNote
+                EmployeeId = emp.EmployeeID,
+                TenantId = emp.TenantId,
+                AttendanceDate = attDate,
+                ClockIn = input.ClockIn ?? nowLocal,
+                Status = null, // computed later (optional)
+                Location = input.Location,
+                ShiftName = input.ShiftName,
+                Source = input.Source,
+                IpAddress = input.IpAddress,
+                ExceptionNote = input.ExceptionNote
             };
 
-            // validate time logic
-            if (row.ClockIn.HasValue && row.ClockIn.Value.Date != date)
-                return BadRequest("ClockIn date must match AttendanceDate.");
+            // Optional: set status on create based on clock-in
+            entity.Status = ComputeStatus(entity, settings, hasApprovedLeave: false);
 
-            _context.Attendances.Add(row);
+            _context.Attendances.Add(entity);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = row.Id }, Map(row));
-        }
-
-        // POST: /api/attendance/clockin
-        [HttpPost("clockin")]
-        public async Task<ActionResult<AttendanceDto>> ClockIn([FromBody] ClockInDto dto)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            var emp = await _context.Employees
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId && e.TenantId == dto.TenantId);
-
-            if (emp == null) return BadRequest("Employee not found in the specified tenant.");
-
-            var date = (dto.AttendanceDate ?? DateTime.UtcNow.Date).Date;
-            var now = dto.ClockIn ?? DateTime.UtcNow;
-
-            var existing = await _context.Attendances
-                .FirstOrDefaultAsync(a => a.EmployeeId == dto.EmployeeId && a.TenantId == dto.TenantId && a.AttendanceDate == date);
-
-            if (existing != null)
+            var dto = new AttendanceDto
             {
-                // If already clocked in and not clocked out � block
-                if (existing.ClockIn.HasValue && !existing.ClockOut.HasValue)
-                    return Conflict(new { message = "Open attendance already exists (clocked in but not clocked out)." });
-
-                // Otherwise update same row with a new clock-in
-                existing.ClockIn = now;
-                existing.Status = existing.Status ?? "Present";
-                existing.Location = dto.Location ?? existing.Location;
-                existing.ShiftName = dto.ShiftName ?? existing.ShiftName;
-                existing.Source = dto.Source ?? existing.Source;
-                existing.IpAddress = dto.IpAddress ?? existing.IpAddress;
-                existing.ExceptionNote = dto.ExceptionNote ?? existing.ExceptionNote;
-
-                await _context.SaveChangesAsync();
-                return Ok(Map(existing));
-            }
-
-            var row = new Attendance
-            {
-                Id = Guid.NewGuid(),
-                EmployeeId = dto.EmployeeId,
-                TenantId = dto.TenantId,
-                AttendanceDate = date,
-                ClockIn = now,
-                Status = "Present",
-                Location = dto.Location,
-                ShiftName = dto.ShiftName,
-                Source = dto.Source,
-                IpAddress = dto.IpAddress,
-                ExceptionNote = dto.ExceptionNote
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                TenantId = entity.TenantId,
+                AttendanceDate = entity.AttendanceDate,
+                ClockIn = entity.ClockIn,
+                ClockOut = entity.ClockOut,
+                Status = entity.Status,
+                Location = entity.Location,
+                ShiftName = entity.ShiftName,
+                Source = entity.Source,
+                IpAddress = entity.IpAddress,
+                ExceptionNote = entity.ExceptionNote,
+                TotalHours = null
             };
 
-            _context.Attendances.Add(row);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = row.Id }, Map(row));
+            return CreatedAtAction(nameof(GetById), new { id = entity.Id }, dto);
         }
 
-        // PATCH: /api/attendance/{id}/clockout
-        [HttpPatch("{id:guid}/clockout")]
-        public async Task<ActionResult<AttendanceDto>> ClockOut(Guid id, [FromBody] ClockOutDto dto)
-        {
-            var row = await _context.Attendances.FirstOrDefaultAsync(a => a.Id == id);
-            if (row == null) return NotFound();
-
-            if (!row.ClockIn.HasValue)
-                return BadRequest("Cannot clock out a record without a clock-in.");
-
-            var when = dto.ClockOut ?? DateTime.UtcNow;
-            if (when < row.ClockIn.Value)
-                return BadRequest("ClockOut cannot be earlier than ClockIn.");
-
-            row.ClockOut = when;
-            if (!string.IsNullOrWhiteSpace(dto.ExceptionNote))
-                row.ExceptionNote = dto.ExceptionNote;
-
-            await _context.SaveChangesAsync();
-            return Ok(Map(row));
-        }
-
-        // PUT: /api/attendance/{id}  (admin fix)
+        // PUT: api/attendance/{id}
         [HttpPut("{id:guid}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] AttendanceUpdateDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] AttendanceCreateUpdateDto input)
         {
-            if (id != dto.Id) return BadRequest("ID mismatch.");
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            var a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == id);
+            if (a == null) return NotFound();
 
-            var row = await _context.Attendances.FirstOrDefaultAsync(a => a.Id == id);
-            if (row == null) return NotFound();
+            var emp = await _context.Employees.AsNoTracking()
+                         .FirstOrDefaultAsync(e => e.EmployeeID == a.EmployeeId);
+            if (emp == null) return BadRequest("Employee not found.");
 
-            // Ensure employee exists in tenant
-            var empExists = await _context.Employees
-                .AnyAsync(e => e.EmployeeID == dto.EmployeeId && e.TenantId == dto.TenantId);
-            if (!empExists)
-                return BadRequest("Employee not found in the specified tenant.");
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
-            var date = dto.AttendanceDate.Date;
+            if (input.AttendanceDate.HasValue) a.AttendanceDate = input.AttendanceDate.Value.Date;
+            if (input.ClockIn.HasValue) a.ClockIn = input.ClockIn;
+            if (input.ClockOut.HasValue) a.ClockOut = input.ClockOut;
 
-            // If changing date/employee, enforce uniqueness per day
-            var duplicate = await _context.Attendances
-                .AnyAsync(a => a.Id != id &&
-                               a.EmployeeId == dto.EmployeeId &&
-                               a.TenantId == dto.TenantId &&
-                               a.AttendanceDate == date);
-            if (duplicate)
-                return Conflict(new { message = "Attendance for this employee and date already exists." });
-
-            // Validate times
-            if (dto.ClockIn.HasValue && dto.ClockIn.Value.Date != date)
-                return BadRequest("ClockIn date must match AttendanceDate.");
-            if (dto.ClockOut.HasValue && dto.ClockIn.HasValue && dto.ClockOut.Value < dto.ClockIn.Value)
-                return BadRequest("ClockOut cannot be earlier than ClockIn.");
-
-            row.EmployeeId = dto.EmployeeId;
-            row.TenantId = dto.TenantId;
-            row.AttendanceDate = date;
-            row.ClockIn = dto.ClockIn;
-            row.ClockOut = dto.ClockOut;
-            row.Status = dto.Status;
-            row.Location = dto.Location;
-            row.ShiftName = dto.ShiftName;
-            row.Source = dto.Source;
-            row.IpAddress = dto.IpAddress;
-            row.ExceptionNote = dto.ExceptionNote;
+            a.Status = ComputeStatus(a, settings, hasApprovedLeave: false);
+            a.Location = input.Location ?? a.Location;
+            a.ShiftName = input.ShiftName ?? a.ShiftName;
+            a.Source = input.Source ?? a.Source;
+            a.IpAddress = input.IpAddress ?? a.IpAddress;
+            a.ExceptionNote = input.ExceptionNote ?? a.ExceptionNote;
 
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // DELETE: /api/attendance/{id}
+        // DELETE: api/attendance/{id}
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var row = await _context.Attendances.FirstOrDefaultAsync(a => a.Id == id);
-            if (row == null) return NotFound();
+            var a = await _context.Attendances.FindAsync(id);
+            if (a == null) return NotFound();
 
-            _context.Attendances.Remove(row);
+            _context.Attendances.Remove(a);
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        private static AttendanceDto Map(Attendance a) => new AttendanceDto
+        // POST: api/attendance/clockin
+        [HttpPost("clockin")]
+        public async Task<ActionResult<AttendanceDto>> ClockIn([FromBody] ClockInDto input)
         {
-            Id = a.Id,
-            EmployeeId = a.EmployeeId,
-            TenantId = a.TenantId,
-            AttendanceDate = a.AttendanceDate,
-            ClockIn = a.ClockIn,
-            ClockOut = a.ClockOut,
-            Status = a.Status,
-            Location = a.Location,
-            ShiftName = a.ShiftName,
-            Source = a.Source,
-            IpAddress = a.IpAddress,
-            ExceptionNote = a.ExceptionNote
-        };
+            if (input == null) return BadRequest("Body required.");
+            if (input.EmployeeId == Guid.Empty) return BadRequest("EmployeeId is required.");
+
+            var emp = await _context.Employees.AsNoTracking()
+                         .FirstOrDefaultAsync(e => e.EmployeeID == input.EmployeeId);
+            if (emp == null) return BadRequest("Employee not found.");
+
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            if (settings == null) return BadRequest("Org settings not found for employee’s org.");
+
+            var tz = GetTimeZone(settings.TimeZone);
+            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            var date = input.AttendanceDate?.Date ?? nowLocal.Date;
+
+            var existing = await _context.Attendances
+                .FirstOrDefaultAsync(a => a.EmployeeId == emp.EmployeeID &&
+                                          a.TenantId == emp.TenantId &&
+                                          a.AttendanceDate == date);
+            if (existing != null && existing.ClockIn.HasValue)
+                return Conflict(new { message = "Already clocked in for today." });
+
+            if (existing == null)
+            {
+                existing = new Attendance
+                {
+                    Id = Guid.NewGuid(),
+                    EmployeeId = emp.EmployeeID,
+                    TenantId = emp.TenantId,
+                    AttendanceDate = date
+                };
+                _context.Attendances.Add(existing);
+            }
+
+            existing.ClockIn = input.ClockIn ?? nowLocal;
+            existing.Status = ComputeStatus(existing, settings, hasApprovedLeave: false);
+            existing.Location = input.Location ?? existing.Location;
+            existing.ShiftName = input.ShiftName ?? existing.ShiftName;
+            existing.Source = input.Source ?? existing.Source;
+            existing.IpAddress = input.IpAddress ?? existing.IpAddress;
+            existing.ExceptionNote = input.ExceptionNote ?? existing.ExceptionNote;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new AttendanceDto
+            {
+                Id = existing.Id,
+                EmployeeId = existing.EmployeeId,
+                TenantId = existing.TenantId,
+                AttendanceDate = existing.AttendanceDate,
+                ClockIn = existing.ClockIn,
+                ClockOut = existing.ClockOut,
+                Status = existing.Status,
+                Location = existing.Location,
+                ShiftName = existing.ShiftName,
+                Source = existing.Source,
+                IpAddress = existing.IpAddress,
+                ExceptionNote = existing.ExceptionNote,
+                TotalHours = null
+            });
+        }
+
+        // PATCH: api/attendance/{id}/clockout
+        [HttpPatch("{id:guid}/clockout")]
+        public async Task<ActionResult<AttendanceDto>> ClockOut(Guid id, [FromBody] ClockOutDto input)
+        {
+            var a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == id);
+            if (a == null) return NotFound();
+
+            var emp = await _context.Employees.AsNoTracking()
+                         .FirstOrDefaultAsync(e => e.EmployeeID == a.EmployeeId);
+            if (emp == null) return BadRequest("Employee not found.");
+
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            if (settings == null) return BadRequest("Org settings not found for employee’s org.");
+
+            var tz = GetTimeZone(settings.TimeZone);
+            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
+            a.ClockOut = input.ClockOut ?? nowLocal;
+            a.Status = ComputeStatus(a, settings, hasApprovedLeave: false);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new AttendanceDto
+            {
+                Id = a.Id,
+                EmployeeId = a.EmployeeId,
+                TenantId = a.TenantId,
+                AttendanceDate = a.AttendanceDate,
+                ClockIn = a.ClockIn,
+                ClockOut = a.ClockOut,
+                Status = a.Status,
+                Location = a.Location,
+                ShiftName = a.ShiftName,
+                Source = a.Source,
+                IpAddress = a.IpAddress,
+                ExceptionNote = a.ExceptionNote,
+                TotalHours = a.ClockIn.HasValue && a.ClockOut.HasValue
+                    ? (a.ClockOut.Value - a.ClockIn.Value).TotalHours
+                    : (double?)null
+            });
+        }
+
+        // ===== Helpers =====
+
+        private async Task<OrgSetting?> GetSettingsAsync(Guid tenantId, Guid organizationId)
+        {
+            return await _context.OrgSettings.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.OrganizationId == organizationId);
+        }
+
+        private static TimeZoneInfo GetTimeZone(string tzId)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(string.IsNullOrWhiteSpace(tzId) ? "UTC" : tzId);
+            }
+            catch
+            {
+                return TimeZoneInfo.Utc;
+            }
+        }
+
+        private static string ComputeStatus(Attendance a, OrgSetting s, bool hasApprovedLeave)
+        {
+            if (hasApprovedLeave) return "On Leave";
+
+            // No clock-in yet: possibly Absent (policy) or Unknown
+            if (!a.ClockIn.HasValue)
+                return s.AbsentIfNoClockIn ? "Absent" : "Unknown";
+
+            // Lateness
+            var clockInLocal = a.ClockIn.Value;
+            var workStart = clockInLocal.Date + s.WorkDayStart;
+            var lateAfter = workStart.AddMinutes(s.LateAfterMinutes);
+
+            var isLate = clockInLocal > lateAfter;
+
+            // Half-day / full-day using hours worked (if clock-out known)
+            if (a.ClockOut.HasValue)
+            {
+                var hours = (a.ClockOut.Value - a.ClockIn.Value).TotalHours;
+
+                if (hours < Math.Max(0.1, s.HalfDayUnderHours)) // under threshold -> Half Day
+                    return isLate ? "Late (Half Day)" : "Half Day";
+
+                // Full day
+                return isLate ? "Late (Present)" : "Present";
+            }
+
+            // No clock-out yet, but already late
+            return isLate ? "Late" : "Present";
+        }
+    }
+
+    // ====== DTOs used by this controller (align with your project’s namespace if needed) ======
+    public sealed class AttendanceDto
+    {
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public Guid TenantId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public DateTime? ClockOut { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+        public double? TotalHours { get; set; }
+    }
+
+    public sealed class AttendanceCreateUpdateDto
+    {
+        public Guid EmployeeId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public DateTime? ClockOut { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+    }
+
+    public sealed class ClockInDto
+    {
+        public Guid EmployeeId { get; set; }
+        public DateTime? AttendanceDate { get; set; }
+        public DateTime? ClockIn { get; set; }
+        public string? Status { get; set; }
+        public string? Location { get; set; }
+        public string? ShiftName { get; set; }
+        public string? Source { get; set; }
+        public string? IpAddress { get; set; }
+        public string? ExceptionNote { get; set; }
+    }
+
+    public sealed class ClockOutDto
+    {
+        public DateTime? ClockOut { get; set; }
     }
 }

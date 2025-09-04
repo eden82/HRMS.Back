@@ -580,6 +580,49 @@ namespace HRMS.Backend.Data
                 a.HasIndex(x => new { x.TenantId, x.Category });
             });
 
+            // ===== ORG SETTINGS (Attendance rules live here) =====
+            // ===== ORG SETTINGS =====
+            model.Entity<OrgSetting>(e =>
+            {
+                e.ToTable("org_settings");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+                e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+
+                e.Property(x => x.TimeZone).HasColumnName("time_zone").HasMaxLength(100).IsRequired();
+                e.Property(x => x.WorkDayStart).HasColumnName("workday_start"); // TimeSpan
+                e.Property(x => x.WorkDayEnd).HasColumnName("workday_end");     // TimeSpan
+
+                e.Property(x => x.LateAfterMinutes).HasColumnName("late_after_minutes");
+                e.Property(x => x.HalfDayUnderHours).HasColumnName("halfday_under_hours");
+                e.Property(x => x.AbsentIfNoClockIn).HasColumnName("absent_if_no_clockin");
+
+                e.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2(3)")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                e.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at")
+                    .HasColumnType("datetime2(3)")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                e.HasOne(x => x.Tenant)
+                    .WithMany()
+                    .HasForeignKey(x => x.TenantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.Organization)
+                    .WithMany()
+                    .HasForeignKey(x => x.OrganizationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // One settings row per (tenant, organization)
+                e.HasIndex(x => new { x.TenantId, x.OrganizationId }).IsUnique();
+            });
+
+
+
 
         }
     }

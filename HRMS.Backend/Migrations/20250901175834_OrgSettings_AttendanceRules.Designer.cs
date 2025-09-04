@@ -4,6 +4,7 @@ using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRMS.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250901175834_OrgSettings_AttendanceRules")]
+    partial class OrgSettings_AttendanceRules
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -842,57 +845,50 @@ namespace HRMS.Backend.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                    b.Property<bool>("AbsentIfNoClockIn")
-                        .HasColumnType("bit")
-                        .HasColumnName("absent_if_no_clockin");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<int>("HalfDayUnderHours")
+                    b.Property<int>("GraceMinutes")
                         .HasColumnType("int")
-                        .HasColumnName("halfday_under_hours");
+                        .HasColumnName("grace_minutes");
 
-                    b.Property<int>("LateAfterMinutes")
+                    b.Property<int>("LateCutoffMinutes")
                         .HasColumnType("int")
-                        .HasColumnName("late_after_minutes");
+                        .HasColumnName("late_cutoff_minutes");
+
+                    b.Property<double>("MinHoursFullDay")
+                        .HasColumnType("float")
+                        .HasColumnName("min_hours_full_day");
+
+                    b.Property<double>("MinHoursHalfDay")
+                        .HasColumnType("float")
+                        .HasColumnName("min_hours_half_day");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
 
+                    b.Property<TimeSpan>("ShiftEnd")
+                        .HasColumnType("time")
+                        .HasColumnName("shift_end");
+
+                    b.Property<TimeSpan>("ShiftStart")
+                        .HasColumnType("time")
+                        .HasColumnName("shift_start");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("tenant_id");
 
-                    b.Property<string>("TimeZone")
+                    b.Property<string>("TimeZoneId")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("time_zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<TimeSpan>("WorkDayEnd")
-                        .HasColumnType("time")
-                        .HasColumnName("workday_end");
-
-                    b.Property<TimeSpan>("WorkDayStart")
-                        .HasColumnType("time")
-                        .HasColumnName("workday_start");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("time_zone_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasIndex("OrganizationId", "TenantId");
 
                     b.HasIndex("TenantId", "OrganizationId")
                         .IsUnique();
@@ -1779,21 +1775,12 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.OrgSetting", b =>
                 {
-                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                    b.HasOne("HRMS.Backend.Models.Organization", null)
                         .WithMany()
-                        .HasForeignKey("OrganizationId")
+                        .HasForeignKey("OrganizationId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Organization", b =>
