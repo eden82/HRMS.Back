@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HRMS.Backend.Migrations
 {
     /// <inheritdoc />
-    public partial class Init_AllGuid_WithTenantCode : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -151,25 +151,36 @@ namespace HRMS.Backend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OrgSettings",
+                name: "org_settings",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Settings = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Version = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    organization_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    time_zone = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    workday_start = table.Column<TimeSpan>(type: "time", nullable: false),
+                    workday_end = table.Column<TimeSpan>(type: "time", nullable: false),
+                    late_after_minutes = table.Column<int>(type: "int", nullable: false),
+                    halfday_under_hours = table.Column<int>(type: "int", nullable: false),
+                    absent_if_no_clockin = table.Column<bool>(type: "bit", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime2(3)", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    updated_at = table.Column<DateTime>(type: "datetime2(3)", nullable: false, defaultValueSql: "SYSUTCDATETIME()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OrgSettings", x => x.Id);
+                    table.PrimaryKey("PK_org_settings", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_OrgSettings_organizations_OrganizationId",
-                        column: x => x.OrganizationId,
+                        name: "FK_org_settings_organizations_organization_id",
+                        column: x => x.organization_id,
                         principalTable: "organizations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_org_settings_tenants_tenant_id",
+                        column: x => x.tenant_id,
+                        principalTable: "tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -272,14 +283,20 @@ namespace HRMS.Backend.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    JobId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    JobId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     Phone = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     ResumeUrl = table.Column<string>(type: "nvarchar(2083)", maxLength: 2083, nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Source = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContactInformation = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Appliedfor = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Applications = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Fordepartment = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -326,14 +343,14 @@ namespace HRMS.Backend.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     employee_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    attendance_date = table.Column<DateTime>(type: "date", nullable: true),
+                    attendance_date = table.Column<DateTime>(type: "date", nullable: false),
                     clock_in = table.Column<DateTime>(type: "datetime2(3)", nullable: true),
                     clock_out = table.Column<DateTime>(type: "datetime2(3)", nullable: true),
                     status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    location = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    shift_name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    source = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    ip_address = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    location = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    shift_name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    source = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ip_address = table.Column<string>(type: "nvarchar(45)", maxLength: 45, nullable: true),
                     exception_note = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
@@ -381,7 +398,7 @@ namespace HRMS.Backend.Migrations
                     name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     department_code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    department_head_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    department_head_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     parent_department_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     InitialEmployeeCount = table.Column<int>(type: "int", nullable: false)
                 },
@@ -413,30 +430,33 @@ namespace HRMS.Backend.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    department_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    department_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     organization_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     role_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    username = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    password_hash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     first_name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    middle_name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     last_name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    phone_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    emergency_contact_name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    emergency_contact_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     gender = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     nationality = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     marital_status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     date_of_birth = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    phone_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    emergency_contact_name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    emergency_contact_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     job_title = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    employee_code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     employee_education_status = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     employee_type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     photo_url = table.Column<string>(type: "nvarchar(2083)", maxLength: 2083, nullable: false),
                     hire_date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    employee_code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     bank_details = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     custom_fields = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    benefits_enrollment = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    shift_details = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     created_at = table.Column<DateTime>(type: "datetime2(3)", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
                     updated_at = table.Column<DateTime>(type: "datetime2(3)", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
                     terminated_date = table.Column<DateTime>(type: "datetime2(3)", nullable: true)
@@ -473,16 +493,16 @@ namespace HRMS.Backend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Jobs",
+                name: "jobs",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DepartmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Location = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    JobType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    SalaryRange = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    JobTitle = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    DepartmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    TenantID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Location = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    JobType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    SalaryRange = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     ApplicationDeadline = table.Column<DateTime>(type: "datetime2", nullable: true),
                     JobDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Requirement = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -490,16 +510,15 @@ namespace HRMS.Backend.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Jobs", x => x.Id);
+                    table.PrimaryKey("PK_jobs", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Jobs_departments_DepartmentId",
-                        column: x => x.DepartmentId,
+                        name: "FK_jobs_departments_DepartmentID",
+                        column: x => x.DepartmentID,
                         principalTable: "departments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_Jobs_tenants_TenantId",
-                        column: x => x.TenantId,
+                        name: "FK_jobs_tenants_TenantID",
+                        column: x => x.TenantID,
                         principalTable: "tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -545,33 +564,34 @@ namespace HRMS.Backend.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    EmployeeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    GoalTitle = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Priority = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    EmployeeID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OrganizationID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    GoalTitle = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Priority = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Goals", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Goals_employees_EmployeeId",
-                        column: x => x.EmployeeId,
+                        name: "FK_Goals_employees_EmployeeID",
+                        column: x => x.EmployeeID,
                         principalTable: "employees",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Goals_organizations_OrganizationId",
-                        column: x => x.OrganizationId,
+                        name: "FK_Goals_organizations_OrganizationID",
+                        column: x => x.OrganizationID,
                         principalTable: "organizations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Goals_tenants_TenantId",
-                        column: x => x.TenantId,
+                        name: "FK_Goals_tenants_TenantID",
+                        column: x => x.TenantID,
                         principalTable: "tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -588,11 +608,10 @@ namespace HRMS.Backend.Migrations
                     ScheduledDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     LocationUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     MeetingUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    InterviewerId = table.Column<int>(type: "int", nullable: true),
+                    InterviewerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     InterviewNote = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Mode = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    InterviewerEmployeeID = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                    Mode = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -604,8 +623,8 @@ namespace HRMS.Backend.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Interviews_employees_InterviewerEmployeeID",
-                        column: x => x.InterviewerEmployeeID,
+                        name: "FK_Interviews_employees_InterviewerId",
+                        column: x => x.InterviewerId,
                         principalTable: "employees",
                         principalColumn: "id");
                 });
@@ -662,15 +681,17 @@ namespace HRMS.Backend.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     EmployeeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ReviewerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TechnicalSkill = table.Column<short>(type: "smallint", nullable: false),
+                    ReviewType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    TechnicalSkill = table.Column<int>(type: "int", nullable: false),
                     Communication = table.Column<int>(type: "int", nullable: false),
                     Leadership = table.Column<int>(type: "int", nullable: false),
                     Innovation = table.Column<int>(type: "int", nullable: false),
                     Teamwork = table.Column<int>(type: "int", nullable: false),
-                    OverallFeedback = table.Column<short>(type: "smallint", nullable: false),
-                    ReviewCycle = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ReviewPeriodStart = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ReviewPeriodEnd = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Rating = table.Column<double>(type: "float", nullable: false),
+                    OverallFeedback = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ReviewCycle = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ReviewPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReviewPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -693,9 +714,9 @@ namespace HRMS.Backend.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     EmployeeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    FeedbackDeadline = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    FeedbackSources = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    InstructionReviewers = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    FeedbackDeadline = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    FeedbackSources = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    InstructionReviewers = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -733,6 +754,32 @@ namespace HRMS.Backend.Migrations
                         column: x => x.EmployeeId,
                         principalTable: "employees",
                         principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "shortlists",
+                columns: table => new
+                {
+                    ShortlistID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    JobID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    ResumeUrl = table.Column<string>(type: "nvarchar(2083)", maxLength: 2083, nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    position = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ShortlistedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_shortlists", x => x.ShortlistID);
+                    table.ForeignKey(
+                        name: "FK_shortlists_jobs_JobID",
+                        column: x => x.JobID,
+                        principalTable: "jobs",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -791,14 +838,15 @@ namespace HRMS.Backend.Migrations
                 columns: new[] { "tenant_id", "category" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_attendance_employee_id_tenant_id_attendance_date",
-                table: "attendance",
-                columns: new[] { "employee_id", "tenant_id", "attendance_date" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_attendance_tenant_id_attendance_date",
+                name: "IX_attendance_tenant_date",
                 table: "attendance",
                 columns: new[] { "tenant_id", "attendance_date" });
+
+            migrationBuilder.CreateIndex(
+                name: "UX_attendance_employee_tenant_date",
+                table: "attendance",
+                columns: new[] { "employee_id", "tenant_id", "attendance_date" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_AuditLogs_EmployeeId",
@@ -884,22 +932,29 @@ namespace HRMS.Backend.Migrations
                 name: "IX_employees_tenant_id_employee_code",
                 table: "employees",
                 columns: new[] { "tenant_id", "employee_code" },
+                unique: true,
+                filter: "[employee_code] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_employees_tenant_id_username",
+                table: "employees",
+                columns: new[] { "tenant_id", "username" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Goals_EmployeeId",
+                name: "IX_Goals_EmployeeID",
                 table: "Goals",
-                column: "EmployeeId");
+                column: "EmployeeID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Goals_OrganizationId",
+                name: "IX_Goals_OrganizationID",
                 table: "Goals",
-                column: "OrganizationId");
+                column: "OrganizationID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Goals_TenantId",
+                name: "IX_Goals_TenantID",
                 table: "Goals",
-                column: "TenantId");
+                column: "TenantID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Interviews_ApplicantId",
@@ -907,19 +962,19 @@ namespace HRMS.Backend.Migrations
                 column: "ApplicantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Interviews_InterviewerEmployeeID",
+                name: "IX_Interviews_InterviewerId",
                 table: "Interviews",
-                column: "InterviewerEmployeeID");
+                column: "InterviewerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Jobs_DepartmentId",
-                table: "Jobs",
-                column: "DepartmentId");
+                name: "IX_jobs_DepartmentID",
+                table: "jobs",
+                column: "DepartmentID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Jobs_TenantId",
-                table: "Jobs",
-                column: "TenantId");
+                name: "IX_jobs_TenantID",
+                table: "jobs",
+                column: "TenantID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_leaves_approved_by_tenant_id",
@@ -947,6 +1002,17 @@ namespace HRMS.Backend.Migrations
                 column: "organization_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_org_settings_organization_id",
+                table: "org_settings",
+                column: "organization_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_org_settings_tenant_id_organization_id",
+                table: "org_settings",
+                columns: new[] { "tenant_id", "organization_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_organizations_tenant_id_domain",
                 table: "organizations",
                 columns: new[] { "tenant_id", "domain" },
@@ -959,11 +1025,6 @@ namespace HRMS.Backend.Migrations
                 columns: new[] { "tenant_id", "org_code" },
                 unique: true,
                 filter: "[org_code] IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OrgSettings_OrganizationId",
-                table: "OrgSettings",
-                column: "OrganizationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_performance_reviews_EmployeeId",
@@ -986,6 +1047,11 @@ namespace HRMS.Backend.Migrations
                 columns: new[] { "tenant_id", "name" },
                 unique: true,
                 filter: "[tenant_id] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_shortlists_JobID",
+                table: "shortlists",
+                column: "JobID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_tenants_domain",
@@ -1044,10 +1110,10 @@ namespace HRMS.Backend.Migrations
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_applicants_Jobs_JobId",
+                name: "FK_applicants_jobs_JobId",
                 table: "applicants",
                 column: "JobId",
-                principalTable: "Jobs",
+                principalTable: "jobs",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
@@ -1116,13 +1182,16 @@ namespace HRMS.Backend.Migrations
                 name: "leaves");
 
             migrationBuilder.DropTable(
-                name: "OrgSettings");
+                name: "org_settings");
 
             migrationBuilder.DropTable(
                 name: "performance_reviews");
 
             migrationBuilder.DropTable(
                 name: "RequestFeedbacks");
+
+            migrationBuilder.DropTable(
+                name: "shortlists");
 
             migrationBuilder.DropTable(
                 name: "TenantSettings");
@@ -1143,7 +1212,7 @@ namespace HRMS.Backend.Migrations
                 name: "Trainings");
 
             migrationBuilder.DropTable(
-                name: "Jobs");
+                name: "jobs");
 
             migrationBuilder.DropTable(
                 name: "departments");

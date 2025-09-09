@@ -20,6 +20,7 @@ namespace HRMS.Backend.Data
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<Job> Jobs => Set<Job>();
         public DbSet<Applicant> Applicants => Set<Applicant>();
+        public DbSet<Shortlist> Shortlists => Set<Shortlist>();
         public DbSet<Interview> Interviews => Set<Interview>();
         public DbSet<Leave> Leaves => Set<Leave>();
         public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
@@ -512,10 +513,7 @@ namespace HRMS.Backend.Data
                  .HasForeignKey(pr => pr.EmployeeId)
                  .OnDelete(DeleteBehavior.NoAction);
 
-                e.HasOne(pr => pr.Reviewer)
-                 .WithMany()
-                 .HasForeignKey(pr => pr.ReviewerId)
-                 .OnDelete(DeleteBehavior.NoAction);
+                
             });
             model.Entity<User>(e =>
             {
@@ -529,8 +527,14 @@ namespace HRMS.Backend.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            model.Entity<PerformanceReview>()
+                .HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(p => p.ReviewerId)
+                .OnDelete(DeleteBehavior.NoAction);
 
-            
+
+
             // ===== ASSETS (GUID) =====
             model.Entity<Asset>(a =>
             {

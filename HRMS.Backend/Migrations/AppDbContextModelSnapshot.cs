@@ -62,7 +62,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Announcements");
+                    b.ToTable("Announcements", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Applicant", b =>
@@ -72,11 +72,26 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
+                    b.Property<string>("Applications")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Appliedfor")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactInformation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<Guid>("JobId")
+                    b.Property<string>("Fordepartment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("JobId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
@@ -100,8 +115,12 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -280,7 +299,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Department", b =>
@@ -591,41 +610,49 @@ namespace HRMS.Backend.Migrations
 
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("DueDate")
+                    b.Property<DateTime>("DueDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("EmployeeId")
+                    b.Property<Guid>("EmployeeID")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("GoalTitle")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid>("OrganizationID")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Priority")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("TenantID")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeId");
+                    b.HasIndex("EmployeeID");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasIndex("OrganizationID");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("TenantID");
 
-                    b.ToTable("Goals");
+                    b.ToTable("Goals", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Interview", b =>
@@ -645,11 +672,8 @@ namespace HRMS.Backend.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid?>("InterviewerEmployeeID")
+                    b.Property<Guid?>("InterviewerId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("InterviewerId")
-                        .HasColumnType("int");
 
                     b.Property<string>("LocationUrl")
                         .HasColumnType("nvarchar(max)");
@@ -675,9 +699,9 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("ApplicantId");
 
-                    b.HasIndex("InterviewerEmployeeID");
+                    b.HasIndex("InterviewerId");
 
-                    b.ToTable("Interviews");
+                    b.ToTable("Interviews", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Job", b =>
@@ -693,41 +717,47 @@ namespace HRMS.Backend.Migrations
                     b.Property<DateTime?>("ClosingDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("DepartmentId")
+                    b.Property<Guid?>("DepartmentID")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("JobDescription")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("JobType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Location")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Requirement")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SalaryRange")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("TenantID")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DepartmentId");
+                    b.HasIndex("DepartmentID");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("TenantID");
 
-                    b.ToTable("Jobs");
+                    b.ToTable("jobs", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Leave", b =>
@@ -834,7 +864,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("LeaveTypes");
+                    b.ToTable("LeaveTypes", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.OrgSetting", b =>
@@ -997,18 +1027,28 @@ namespace HRMS.Backend.Migrations
                     b.Property<int>("Leadership")
                         .HasColumnType("int");
 
-                    b.Property<short>("OverallFeedback")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("ReviewCycle")
+                    b.Property<string>("OverallFeedback")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ReviewPeriodEnd")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<double>("Rating")
+                        .HasColumnType("float");
 
-                    b.Property<string>("ReviewPeriodStart")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("ReviewCycle")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("ReviewPeriodEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ReviewPeriodStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<Guid>("ReviewerId")
                         .HasColumnType("uniqueidentifier");
@@ -1016,8 +1056,8 @@ namespace HRMS.Backend.Migrations
                     b.Property<int>("Teamwork")
                         .HasColumnType("int");
 
-                    b.Property<short>("TechnicalSkill")
-                        .HasColumnType("smallint");
+                    b.Property<int>("TechnicalSkill")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -1038,22 +1078,24 @@ namespace HRMS.Backend.Migrations
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("FeedbackDeadline")
+                    b.Property<DateTime>("FeedbackDeadline")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("FeedbackSources")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("InstructionReviewers")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
 
-                    b.ToTable("RequestFeedbacks");
+                    b.ToTable("RequestFeedbacks", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Role", b =>
@@ -1136,6 +1178,54 @@ namespace HRMS.Backend.Migrations
                             Name = "SubManager",
                             PermissionsJson = "[\"employees.read.dept\",\"leave.read.dept\",\"attendance.read.dept\"]"
                         });
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.Shortlist", b =>
+                {
+                    b.Property<Guid>("ShortlistID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid>("JobID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResumeUrl")
+                        .HasMaxLength(2083)
+                        .HasColumnType("nvarchar(2083)");
+
+                    b.Property<DateTime>("ShortlistedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("position")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("ShortlistID");
+
+                    b.HasIndex("JobID");
+
+                    b.ToTable("shortlists", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Tenant", b =>
@@ -1296,7 +1386,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("TenantSettings");
+                    b.ToTable("TenantSettings", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Training", b =>
@@ -1364,7 +1454,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Trainings");
+                    b.ToTable("Trainings", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.TrainingEnrollment", b =>
@@ -1397,7 +1487,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasIndex("TrainingId");
 
-                    b.ToTable("TrainingEnrollments");
+                    b.ToTable("TrainingEnrollments", (string)null);
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.User", b =>
@@ -1495,8 +1585,7 @@ namespace HRMS.Backend.Migrations
                     b.HasOne("HRMS.Backend.Models.Job", "Job")
                         .WithMany("Applicants")
                         .HasForeignKey("JobId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Job");
                 });
@@ -1671,19 +1760,19 @@ namespace HRMS.Backend.Migrations
                 {
                     b.HasOne("HRMS.Backend.Models.Employee", "Employee")
                         .WithMany()
-                        .HasForeignKey("EmployeeId")
+                        .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("HRMS.Backend.Models.Organization", "Organization")
                         .WithMany()
-                        .HasForeignKey("OrganizationId")
+                        .HasForeignKey("OrganizationID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
+                        .HasForeignKey("TenantID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1697,14 +1786,14 @@ namespace HRMS.Backend.Migrations
             modelBuilder.Entity("HRMS.Backend.Models.Interview", b =>
                 {
                     b.HasOne("HRMS.Backend.Models.Applicant", "Applicant")
-                        .WithMany()
+                        .WithMany("Interviews")
                         .HasForeignKey("ApplicantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("HRMS.Backend.Models.Employee", "Interviewer")
                         .WithMany()
-                        .HasForeignKey("InterviewerEmployeeID");
+                        .HasForeignKey("InterviewerId");
 
                     b.Navigation("Applicant");
 
@@ -1715,13 +1804,11 @@ namespace HRMS.Backend.Migrations
                 {
                     b.HasOne("HRMS.Backend.Models.Department", "Department")
                         .WithMany()
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DepartmentID");
 
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
+                        .HasForeignKey("TenantID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1815,15 +1902,13 @@ namespace HRMS.Backend.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("HRMS.Backend.Models.Employee", "Reviewer")
+                    b.HasOne("HRMS.Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("ReviewerId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Employee");
-
-                    b.Navigation("Reviewer");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.RequestFeedback", b =>
@@ -1845,6 +1930,17 @@ namespace HRMS.Backend.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.Shortlist", b =>
+                {
+                    b.HasOne("HRMS.Backend.Models.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.TenantSetting", b =>
@@ -1908,6 +2004,11 @@ namespace HRMS.Backend.Migrations
                         .HasForeignKey("TenantId");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.Applicant", b =>
+                {
+                    b.Navigation("Interviews");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Department", b =>

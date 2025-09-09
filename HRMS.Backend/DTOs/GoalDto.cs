@@ -1,25 +1,18 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRMS.Backend.Models
+namespace HRMS.Backend.DTOs
 {
-    public class Goal
+    public class GoalDto
     {
-        [Key]
-        public Guid Id { get; set; }  // Changed from int to Guid
+        [Required]
+        public Guid? EmployeeID { get; set; }
 
         [Required]
-        public Guid EmployeeID { get; set; }
-        public Employee? Employee { get; set; }
+        public Guid? OrganizationID { get; set; }
 
         [Required]
-        public Guid OrganizationID { get; set; }
-        public Organization? Organization { get; set; }
-
-        [Required]
-        public Guid TenantID { get; set; }
-        public Tenant? Tenant { get; set; }
+        public Guid? TenantID { get; set; }
 
         [Required, MaxLength(255)]
         public string GoalTitle { get; set; } = string.Empty;
@@ -33,7 +26,6 @@ namespace HRMS.Backend.Models
         [MaxLength(50)]
         public string Status { get; set; } = "Inprogress";
 
-        [DataType(DataType.Date)]
         [Required]
         public DateTime DueDate { get; set; }
 

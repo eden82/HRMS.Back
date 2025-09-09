@@ -42,6 +42,7 @@ namespace HRMS.Backend.Models
 
         public ICollection<Department> ChildDepartments { get; set; } = new List<Department>();
         public ICollection<Employee> Employees { get; set; } = new List<Employee>();
+        public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
 
         public int InitialEmployeeCount { get; set; }
     }
