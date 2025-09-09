@@ -1,14 +1,11 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using HRMS.Backend.Data;
+using HRMS.Backend.Models;
+using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HRMS.Backend.Data;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using HRMS.Backend.Models;
-using Microsoft.AspNetCore.Authorization;
-using System;
-using System.Threading.Tasks;
 
 namespace HRMS.Backend.Controllers
 {
@@ -16,81 +13,55 @@ namespace HRMS.Backend.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly AppDbContext _db;
+        private readonly IPasswordHasher _hasher;
+        private readonly IJwtTokenService _jwt;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt)
         {
-            _context = context;
-            _configuration = configuration;
+            _db = db;
+            _hasher = hasher;
+            _jwt = jwt;
         }
 
-        [AllowAnonymous]
+        public record LoginRequest(string UsernameOrEmail, string Password);
+        public record LoginResponse(string accessToken, DateTimeOffset expiresAt, string refreshToken, DateTimeOffset refreshExpiresAt);
+
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest input)
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username);
+            if (string.IsNullOrWhiteSpace(input.UsernameOrEmail) || string.IsNullOrWhiteSpace(input.Password))
+                return BadRequest("Username/Email and Password are required.");
 
-            if (user == null || user.Password != request.Password)
-                return Unauthorized(new { message = "Invalid username or password" });
+            var norm = input.UsernameOrEmail.Trim().ToUpperInvariant();
 
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = jwtSettings["Key"];
-            var issuer = jwtSettings["Issuer"];
-            var audience = jwtSettings["Audience"];
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u =>
+                    u.NormalizedUsername == norm ||
+                    (u.NormalizedEmail != null && u.NormalizedEmail == norm));
 
-            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
-                return StatusCode(500, "Missing JWT configuration values.");
+            if (user == null || !user.IsActive)
+                return Unauthorized("Invalid credentials.");
 
-            if (!int.TryParse(jwtSettings["ExpiryMinutes"], out int expiryMinutes))
-                return StatusCode(500, "Invalid or missing ExpiryMinutes in JWT settings.");
-
-            var claims = new[]
+            // Verify password (byte[] hash/salt)
+            var ok = _hasher.Verify(input.Password, user.PasswordHash, user.PasswordSalt);
+            if (!ok)
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), // Guid ok
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Role, user.Role ?? string.Empty),
-                new Claim("organizationId", user.OrganizationId?.ToString() ?? string.Empty)
-            };
-
-            var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-            var creds = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
-                signingCredentials: creds);
-
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-            if (user.Role == "SuperAdmin")
-            {
-                return Ok(new
-                {
-                    Token = tokenString,
-                    RedirectTo = "superadmin",
-                    User = new { user.Id, user.Email, user.FullName, user.Role }
-                });
-            }
-            else if (user.Role == "Admin")
-            {
-                return Ok(new
-                {
-                    Token = tokenString,
-                    RedirectTo = "main",
-                    User = new { user.Id, user.Email, user.FullName, user.Role, user.OrganizationId }
-                });
+                user.AccessFailedCount += 1;
+                await _db.SaveChangesAsync();
+                return Unauthorized("Invalid credentials.");
             }
 
-            return Ok(new
-            {
-                Token = tokenString,
-                RedirectTo = "main",
-                User = new { user.Id, user.Email, user.FullName, user.Role, user.OrganizationId }
-            });
+            user.AccessFailedCount = 0;
+            user.LastLoginUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
+            var (rt, rtExp) = _jwt.CreateRefreshToken();
+
+            // If you store refresh tokens, persist rt + rtExp here
+
+            return Ok(new LoginResponse(jwt, exp, rt, rtExp));
         }
     }
 }

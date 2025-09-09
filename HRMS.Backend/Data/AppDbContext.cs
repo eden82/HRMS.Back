@@ -26,12 +26,19 @@ namespace HRMS.Backend.Data
         public DbSet<Goal> Goals => Set<Goal>();
         public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
         public DbSet<RequestFeedback> RequestFeedbacks => Set<RequestFeedback>();
+        
         public DbSet<Training> Trainings => Set<Training>();
+        public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
+        public DbSet<TrainingMaterial> TrainingMaterials => Set<TrainingMaterial>();
         public DbSet<TrainingEnrollment> TrainingEnrollments => Set<TrainingEnrollment>();
+        public DbSet<TrainingFeedback> TrainingFeedbacks => Set<TrainingFeedback>();
+
         public DbSet<Asset> Assets => Set<Asset>();
         public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
         public DbSet<OrgSetting> OrgSettings => Set<OrgSetting>();
-       
+
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
 
         protected override void OnModelCreating(ModelBuilder model)
         {
@@ -323,7 +330,8 @@ namespace HRMS.Backend.Data
 
                 // Unique per tenant (NULL tenant means "system/global" set)
                 e.HasIndex(r => new { r.TenantId, r.Name }).IsUnique();
-            }); model.Entity<User>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
+            }); 
+            model.Entity<User>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Job>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Applicant>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Interview>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
@@ -517,20 +525,62 @@ namespace HRMS.Backend.Data
                  .HasForeignKey(pr => pr.ReviewerId)
                  .OnDelete(DeleteBehavior.NoAction);
             });
+            // Tokenization & Users
+            model.Entity<RefreshToken>(e =>
+            {
+                e.ToTable("refresh_tokens");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Token).IsRequired().HasMaxLength(500);
+                e.Property(x => x.JwtId).IsRequired().HasMaxLength(64);
+                e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2(3)");
+                e.Property(x => x.ExpiresAtUtc).HasColumnType("datetime2(3)");
+                e.Property(x => x.RevokedAtUtc).HasColumnType("datetime2(3)");
+
+                e.HasOne(x => x.User)
+                 .WithMany() // add ICollection<RefreshToken> on User if you prefer
+                 .HasForeignKey(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.Token).IsUnique();
+            });
+
+            // USERS
             model.Entity<User>(e =>
             {
                 e.ToTable("users");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id");
-                e.Property(x => x.OrganizationId).HasColumnName("organization_id");
-                e.HasOne(x => x.Organization)
-                 .WithMany()
-                 .HasForeignKey(x => x.OrganizationId)
-                 .OnDelete(DeleteBehavior.Restrict);
+                e.HasKey(u => u.Id);
+
+                // Unique for normalized username (required)
+                e.HasIndex(u => u.NormalizedUsername).IsUnique();
+
+                // Unique email only when supplied (filtered unique index)
+                e.HasIndex(u => u.NormalizedEmail)
+                    .IsUnique()
+                    .HasFilter("[normalized_email] IS NOT NULL");
+
+                // Relationships (optional)
+                e.HasOne(u => u.Tenant)
+                    .WithMany(t => t.Users)
+                    .HasForeignKey(u => u.TenantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(u => u.Organization)
+                    .WithMany() // or .WithMany(o => o.Users) if you add nav
+                    .HasForeignKey(u => u.OrganizationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(u => u.Employee)
+                    .WithMany() // or .WithOne(e => e.User) if 1:1
+                    .HasForeignKey(u => u.EmployeeId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Default values
+                e.Property(u => u.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
+                e.Property(u => u.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             });
 
 
-            
+
             // ===== ASSETS (GUID) =====
             model.Entity<Asset>(a =>
             {
@@ -620,6 +670,136 @@ namespace HRMS.Backend.Data
                 // One settings row per (tenant, organization)
                 e.HasIndex(x => new { x.TenantId, x.OrganizationId }).IsUnique();
             });
+
+            /* ===== TRAINING (Programs) ===== */
+            model.Entity<Training>(e =>
+            {
+                e.ToTable("training_programs");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+                e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+                e.Property(x => x.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
+                e.Property(x => x.Category).HasColumnName("category").IsRequired().HasMaxLength(100);
+                e.Property(x => x.Level).HasColumnName("level").IsRequired();
+                e.Property(x => x.DurationHours).HasColumnName("duration_hours").IsRequired();
+                e.Property(x => x.InstructorName).HasColumnName("instructor_name").IsRequired().HasMaxLength(120);
+                e.Property(x => x.MaxEnrollment).HasColumnName("max_enrollment");
+                e.Property(x => x.StartDateUtc).HasColumnName("start_date_utc");
+                e.Property(x => x.EndDateUtc).HasColumnName("end_date_utc");
+                e.Property(x => x.Description).HasColumnName("description").HasMaxLength(1000);
+
+                // Org/Tenant FKs if you keep navs (optional)
+                e.HasOne<Organization>()
+                 .WithMany()
+                 .HasForeignKey(x => x.OrganizationId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => new { x.TenantId, x.OrganizationId, x.Title });
+            });
+
+            /* ===== TRAINING SESSIONS ===== */
+            model.Entity<TrainingSession>(e =>
+            {
+                e.ToTable("training_sessions");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
+                e.Property(x => x.StartsAtUtc).HasColumnName("starts_at_utc").IsRequired();
+                e.Property(x => x.EndsAtUtc).HasColumnName("ends_at_utc").IsRequired();
+                e.Property(x => x.Location).HasColumnName("location").HasMaxLength(200);
+                e.Property(x => x.IsOnline).HasColumnName("is_online").IsRequired();
+                e.Property(x => x.MeetingLink).HasColumnName("meeting_link").HasMaxLength(500);
+                e.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(1000);
+
+                e.HasOne(x => x.Program)
+                 .WithMany(p => p.Sessions)
+                 .HasForeignKey(x => x.ProgramId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => new { x.ProgramId, x.StartsAtUtc });
+            });
+
+            /* ===== TRAINING MATERIALS ===== */
+            model.Entity<TrainingMaterial>(e =>
+            {
+                e.ToTable("training_materials");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
+                e.Property(x => x.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
+                e.Property(x => x.Url).HasColumnName("url").HasMaxLength(1000);
+                e.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(1000);
+                e.Property(x => x.UploadedAtUtc).HasColumnName("uploaded_at_utc");
+
+                e.HasOne(x => x.Program)
+                 .WithMany(p => p.Materials)
+                 .HasForeignKey(x => x.ProgramId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            /* ===== TRAINING ENROLLMENTS ===== */
+            model.Entity<TrainingEnrollment>(e =>
+            {
+                e.ToTable("training_enrollments");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
+                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+                e.Property(x => x.EmployeeId).HasColumnName("employee_id").IsRequired();
+                e.Property(x => x.EnrolledOnUtc).HasColumnName("enrolled_on_utc");
+                e.Property(x => x.ProgressPercent).HasColumnName("progress_percent");
+                e.Property(x => x.CompletedOnUtc).HasColumnName("completed_on_utc");
+
+                e.HasOne(x => x.Program)
+                 .WithMany(p => p.Enrollments)
+                 .HasForeignKey(x => x.ProgramId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // (employee_id, tenant_id) -> Employee (id, tenant_id)
+                e.HasOne(x => x.Employee)
+                 .WithMany()
+                 .HasForeignKey(x => new { x.EmployeeId, x.TenantId })
+                 .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // one enrollment per program per employee per tenant
+                e.HasIndex(x => new { x.ProgramId, x.EmployeeId, x.TenantId }).IsUnique();
+            });
+
+            /* ===== TRAINING FEEDBACK ===== */
+            model.Entity<TrainingFeedback>(e =>
+            {
+                e.ToTable("training_feedback");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
+                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+                e.Property(x => x.EmployeeId).HasColumnName("employee_id").IsRequired();
+                e.Property(x => x.Rating).HasColumnName("rating");
+                e.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
+                e.Property(x => x.SubmittedOnUtc).HasColumnName("submitted_on_utc");
+
+                e.HasOne(x => x.Program)
+                 .WithMany(p => p.Feedback)
+                 .HasForeignKey(x => x.ProgramId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(x => x.Employee)
+                 .WithMany()
+                 .HasForeignKey(x => new { x.EmployeeId, x.TenantId })
+                 .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // one feedback per program per employee per tenant
+                e.HasIndex(x => new { x.ProgramId, x.EmployeeId, x.TenantId }).IsUnique();
+            });
+
 
 
 

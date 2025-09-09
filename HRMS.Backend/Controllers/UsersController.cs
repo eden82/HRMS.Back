@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
+using HRMS.Backend.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRMS.Backend.Controllers
@@ -11,76 +13,104 @@ namespace HRMS.Backend.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _db;
+        private readonly IPasswordHasher _hasher;
 
-        public UsersController(AppDbContext context)
+        public UsersController(AppDbContext db, IPasswordHasher hasher)
         {
-            _context = context;
+            _db = db;
+            _hasher = hasher;
         }
 
-        // POST: api/Users
-        [HttpPost]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        public sealed class CreateUserDto
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            public string FullName { get; set; } = string.Empty;
+            public string Username { get; set; } = string.Empty;
+            public string? Email { get; set; }
+            public string? PhoneNumber { get; set; }
+            public string Password { get; set; } = string.Empty;
+            public string Role { get; set; } = "User";
+            public Guid? TenantId { get; set; }
+            public Guid? OrganizationId { get; set; }
+            public Guid? EmployeeId { get; set; }
+        }
 
-            if (string.IsNullOrEmpty(request.Username))
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateUserDto input)
+        {
+            if (string.IsNullOrWhiteSpace(input.Username)) return BadRequest("Username is required.");
+            if (string.IsNullOrWhiteSpace(input.Password)) return BadRequest("Password is required.");
+
+            var normalizedUsername = input.Username.Trim().ToUpperInvariant();
+            var normalizedEmail = string.IsNullOrWhiteSpace(input.Email) ? null : input.Email!.Trim().ToUpperInvariant();
+
+            var usernameTaken = await _db.Users.AnyAsync(u => u.NormalizedUsername == normalizedUsername);
+            if (usernameTaken) return Conflict("Username already in use.");
+
+            if (normalizedEmail != null)
             {
-                if (request.Role != null && request.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
-                    request.Username = "superadmin";
-                else
-                    return BadRequest("Username is required for non-superadmin users.");
+                var emailTaken = await _db.Users.AnyAsync(u => u.NormalizedEmail == normalizedEmail);
+                if (emailTaken) return Conflict("Email already in use.");
             }
+
+            _hasher.Create(input.Password, out var hash, out var salt);
 
             var user = new User
             {
                 Id = Guid.NewGuid(),
-                FullName = request.FullName,
-                Email = request.Email,
-                PhoneNumber = request.PhoneNumber,
-                Password = request.Password, // (todo: hash)
-                Role = request.Role,
-                Username = request.Username,
-                OrganizationId = request.OrganizationId, // null for SuperAdmin
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = null
+                FullName = input.FullName.Trim(),
+                Username = input.Username.Trim(),
+                NormalizedUsername = normalizedUsername,
+                Email = input.Email,
+                NormalizedEmail = normalizedEmail,
+                PhoneNumber = input.PhoneNumber,
+                PasswordHash = hash,
+                PasswordSalt = salt,
+                Role = input.Role,
+                TenantId = input.TenantId,
+                OrganizationId = input.OrganizationId,
+                EmployeeId = input.EmployeeId,
+                SecurityStamp = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow
             };
 
-            try
-            {
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
-            }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, $"Database error: {ex.InnerException?.Message ?? ex.Message}");
-            }
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { user.Id, user.FullName, user.Username, user.Email });
         }
 
-        // GET: api/Users/{id}
         [HttpGet("{id:guid}")]
-        public async Task<IActionResult> GetUserById(Guid id)
+        public async Task<IActionResult> GetById(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-                return NotFound();
-
-            return Ok(user);
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null) return NotFound();
+            return Ok(new
+            {
+                user.Id,
+                user.FullName,
+                user.Username,
+                user.Email,
+                user.PhoneNumber,
+                user.Role,
+                user.TenantId,
+                user.OrganizationId,
+                user.EmployeeId,
+                user.IsActive,
+                user.LastLoginUtc,
+                user.CreatedAt,
+                user.UpdatedAt
+            });
         }
-    }
 
-    // DTO used by UsersController (GUID)
-    public sealed class CreateUserRequest
-    {
-        public string FullName { get; set; } = "";
-        public string? Email { get; set; }
-        public string? PhoneNumber { get; set; }
-        public string Password { get; set; } = "";
-        public string Role { get; set; } = "User";
-        public string Username { get; set; } = "";
-        public Guid? OrganizationId { get; set; } // null for SuperAdmin
+        // Example where the old error happened – ensure we use LastLoginUtc (not LastLoginAtUtc)
+        [HttpPost("{id:guid}/touch-login")]
+        public async Task<IActionResult> TouchLogin(Guid id)
+        {
+            var u = await _db.Users.FindAsync(id);
+            if (u == null) return NotFound();
+            u.LastLoginUtc = DateTime.UtcNow; // <-- FIXED name
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
     }
 }
