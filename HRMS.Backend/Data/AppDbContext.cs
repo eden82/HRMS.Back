@@ -20,6 +20,7 @@ namespace HRMS.Backend.Data
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<Job> Jobs => Set<Job>();
         public DbSet<Applicant> Applicants => Set<Applicant>();
+        public DbSet<Shortlist> Shortlists => Set<Shortlist>();
         public DbSet<Interview> Interviews => Set<Interview>();
         public DbSet<Leave> Leaves => Set<Leave>();
         public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
@@ -520,10 +521,7 @@ namespace HRMS.Backend.Data
                  .HasForeignKey(pr => pr.EmployeeId)
                  .OnDelete(DeleteBehavior.NoAction);
 
-                e.HasOne(pr => pr.Reviewer)
-                 .WithMany()
-                 .HasForeignKey(pr => pr.ReviewerId)
-                 .OnDelete(DeleteBehavior.NoAction);
+                
             });
             // Tokenization & Users
             model.Entity<RefreshToken>(e =>
@@ -578,6 +576,12 @@ namespace HRMS.Backend.Data
                 e.Property(u => u.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
                 e.Property(u => u.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             });
+
+            model.Entity<PerformanceReview>()
+                .HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(p => p.ReviewerId)
+                .OnDelete(DeleteBehavior.NoAction);
 
 
 

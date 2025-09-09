@@ -71,5 +71,6 @@ namespace HRMS.Backend.Models
         public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
         public ICollection<Role> Roles { get; set; } = new List<Role>();
         public ICollection<User> Users { get; set; } = new List<User>();
+        public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
     }
 }

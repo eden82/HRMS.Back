@@ -1,17 +1,12 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRMS.Backend.Models
+namespace HRMS.Backend.DTOs
 {
-    public class RequestFeedback
+    public class RequestFeedbackDto
     {
-        [Key]
-        public Guid Id { get; set; } = Guid.NewGuid();  // Changed to GUID
-
         [Required(ErrorMessage = "EmployeeID is required.")]
         public Guid EmployeeId { get; set; }
-        public Employee Employee { get; set; }
 
         [Required(ErrorMessage = "FeedbackDeadline is required.")]
         [DataType(DataType.Date)]

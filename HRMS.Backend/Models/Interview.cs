@@ -11,12 +11,13 @@ namespace HRMS.Backend.Models
         public string? LocationUrl { get; set; }
         public string? MeetingUrl { get; set; }
 
-        public int? InterviewerId { get; set; }
+        public Guid? InterviewerId { get; set; }
         public string InterviewNote { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+        public string Status { get; set; } = "Scheduled";
         public string Mode { get; set; } = string.Empty;
 
         public Applicant Applicant { get; set; } = null!;
         public Employee? Interviewer { get; set; }
     }
 }
+
