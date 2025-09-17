@@ -101,7 +101,7 @@ namespace HRMS.Backend.Models
 
         [Required]
         [Column("hire_date")]
-        public DateTime JoiningDate { get; set; }
+        public DateTime HireDate { get; set; }
 
         [MaxLength(50)]
         [Column("employee_code")]

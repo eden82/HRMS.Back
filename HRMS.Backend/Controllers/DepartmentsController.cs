@@ -205,13 +205,13 @@ namespace HRMS.Backend.Controllers
                 var newHires = await _context.Employees
                     .Where(e => e.DepartmentId.HasValue &&
                                 allDeptIds.Contains(e.DepartmentId.Value) &&
-                                e.JoiningDate >= DateTime.UtcNow.AddDays(-30))
+                                e.HireDate >= DateTime.UtcNow.AddDays(-30))
                     .Select(e => new
                     {
                         EmployeeName = (e.FirstName + " " + e.LastName).Trim(),
                         e.JobTitle,
                         e.PhoneNumber,
-                        e.JoiningDate
+                        e.HireDate
                     })
                     .ToListAsync();
 
@@ -355,13 +355,13 @@ namespace HRMS.Backend.Controllers
             var newHires = await _context.Employees
                 .Where(e => e.DepartmentId.HasValue &&
                             allDeptIds.Contains(e.DepartmentId.Value) &&
-                            e.JoiningDate >= DateTime.UtcNow.AddDays(-30))
+                            e.HireDate >= DateTime.UtcNow.AddDays(-30))
                 .Select(e => new
                 {
                     EmployeeName = (e.FirstName + " " + e.LastName).Trim(),
                     Position = e.JobTitle,
                     e.PhoneNumber,
-                    e.JoiningDate
+                    e.HireDate
                 })
                 .ToListAsync();
 
@@ -375,17 +375,17 @@ namespace HRMS.Backend.Controllers
             });
         }
 
-        //    // DELETE: api/departments/{id}
-        //    [HttpDelete("{id:guid}")]
-        //    public async Task<IActionResult> DeleteDepartment(Guid id)
-        //    {
-        //        var department = await _context.Departments.FirstOrDefaultAsync(d => d.Id == id);
-        //        if (department == null) return NotFound();
+        // DELETE: api/departments/{id}
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> DeleteDepartment(Guid id)
+        {
+            var department = await _context.Departments.FirstOrDefaultAsync(d => d.Id == id);
+            if (department == null) return NotFound();
 
-        //        _context.Departments.Remove(department);
-        //        await _context.SaveChangesAsync();
-        //        return NoContent();
-        //    }
+            _context.Departments.Remove(department);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
 
         // ----- helpers -----
         private Task<string> GenerateUniqueDeptCodeAsync(Guid orgId, string name)
@@ -541,7 +541,7 @@ namespace HRMS.Backend.Controllers
                     e.EmployeeID,
                     EmployeeName = (e.FirstName + " " + e.LastName).Trim(),
                     e.JobTitle,
-                    DepartmentName = e.Department!.DepartmentName,
+                    DepartmentName = e.Department != null ? e.Department.DepartmentName : "N/A",
                     e.PhoneNumber
                 })
                 .ToListAsync();
@@ -581,7 +581,7 @@ namespace HRMS.Backend.Controllers
                     e.EmployeeID,
                     EmployeeName = (e.FirstName + " " + e.LastName).Trim(),
                     e.JobTitle,
-                    DepartmentName = e.Department!.DepartmentName,
+                    DepartmentName = e.Department != null ? e.Department.DepartmentName : "N/A",
                     e.PhoneNumber
                 })
                 .ToListAsync();

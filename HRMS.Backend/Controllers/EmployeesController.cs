@@ -30,7 +30,7 @@ namespace HRMS.Backend.Controllers
             if (!tenantExists) return BadRequest($"Tenant {dto.TenantId} not found.");
 
             var org = await _context.Organizations.AsNoTracking()
-                         .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+                                 .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
             if (org is null) return BadRequest("Organization not found in the specified tenant.");
 
             if (dto.DepartmentId.HasValue)
@@ -90,7 +90,8 @@ namespace HRMS.Backend.Controllers
                 EmploymentType = dto.EmploymentType.Trim(),
                 EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim(),
                 PhotoUrl = dto.PhotoUrl.Trim(),
-                JoiningDate = dto.JoiningDate,
+                // If JoiningDate is null, use current UTC date as default
+                HireDate = dto.HireDate == default ? DateTime.UtcNow : dto.HireDate,
 
                 EmployeeCode = employeeCode,
                 Username = username,
@@ -109,31 +110,24 @@ namespace HRMS.Backend.Controllers
             _context.Employees.Add(entity);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = entity.EmployeeID }, new { entity.EmployeeID });
-        }
-
-        // GET: api/employees
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetAll()
-        {
-            var list = await _context.Employees
+            // Fetch the created employee along with department and role details
+            var createdEmployee = await _context.Employees
+                .Where(e => e.EmployeeID == entity.EmployeeID)
+                .Include(e => e.Department)  // Include Department if it exists
+                .Include(e => e.Role)        // Include Role
                 .AsNoTracking()
                 .Select(e => new
                 {
                     e.EmployeeID,
-                    e.FirstName,
-                    e.LastName,
-                    e.Email,
-                    e.EmployeeCode,
-                    e.OrganizationId,
-                    e.DepartmentId,
-                    e.TenantId,
-                    e.RoleId
+                    EmployeeName = $"{e.FirstName} {e.LastName}",
+                    Department = e.Department != null ? e.Department.DepartmentName : null, // Null if no department
+                    RoleName = e.Role.Name
                 })
-                .ToListAsync();
+                .FirstOrDefaultAsync();
 
-            return Ok(list);
+            return CreatedAtAction(nameof(GetById), new { id = entity.EmployeeID }, createdEmployee);
         }
+
 
         // DELETE: api/employees/{id}
         [HttpDelete("{id:guid}")]
@@ -246,7 +240,7 @@ namespace HRMS.Backend.Controllers
             e.EmploymentType = dto.EmploymentType.Trim();
             e.EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim();
             e.PhotoUrl = dto.PhotoUrl.Trim();
-            e.JoiningDate = dto.JoiningDate;
+            e.HireDate = dto.HireDate;
 
             e.BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails;
             e.CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields;
@@ -258,19 +252,125 @@ namespace HRMS.Backend.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
-
-        // ===== Helpers =====
-        private static string HashPassword(string password)
+        // GET by department
+        [HttpGet("by-department/{tenantId}/{departmentId}")]
+        public async Task<ActionResult<object>> GetByDepartment(Guid tenantId, Guid departmentId)
         {
-            // Simple SHA256 example (replace with BCrypt/ASP.NET Identity hasher if you prefer)
-            var data = Encoding.UTF8.GetBytes(password);
-            var hash = SHA256.HashData(data);
-            return Convert.ToHexString(hash); // uppercase hex
+            if (tenantId == Guid.Empty || departmentId == Guid.Empty)
+                return BadRequest("tenantId and departmentId are required.");
+
+            // Get total employees in department
+            var totalEmployeesInDepartment = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId && e.DepartmentId == departmentId)
+                .CountAsync();
+
+            // Get count of new hires in the department for the current month
+            var newHiresInDepartment = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId && e.DepartmentId == departmentId && e.HireDate.Month == DateTime.UtcNow.Month && e.HireDate.Year == DateTime.UtcNow.Year)
+                .CountAsync();
+
+            var employees = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId && e.DepartmentId == departmentId)
+                .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                .Select(e => new EmployeeListDto
+                {
+                    EmployeeID = e.EmployeeID,
+                    TenantId = e.TenantId,
+                    OrganizationId = e.OrganizationId,
+                    DepartmentId = e.DepartmentId,
+                    FirstName = e.FirstName,
+                    LastName = e.LastName,
+                    Email = e.Email,
+                    EmployeeCode = e.EmployeeCode,
+                    JobTitle = e.JobTitle
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                TotalEmployeesInDepartment = totalEmployeesInDepartment,
+                NewHiresThisMonth = newHiresInDepartment,
+                Employees = employees
+            });
         }
 
+        //get employee by employee code
+        [HttpGet("by-employee-code/{tenantId}/{employeeCode}")]
+        public async Task<ActionResult<EmployeeDetailDto>> GetByEmployeeCode(Guid tenantId, string employeeCode)
+        {
+            if (tenantId == Guid.Empty || string.IsNullOrWhiteSpace(employeeCode))
+                return BadRequest("tenantId and employeeCode are required.");
+
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId && e.EmployeeCode == employeeCode)
+                .Select(e => new EmployeeDetailDto
+                {
+                    EmployeeID = e.EmployeeID,
+                    TenantId = e.TenantId,
+                    OrganizationId = e.OrganizationId,
+                    FirstName = e.FirstName,
+                    LastName = e.LastName,
+                    Email = e.Email,
+                    EmployeeCode = e.EmployeeCode,
+                    JobTitle = e.JobTitle,
+                    DepartmentId = e.DepartmentId
+                })
+                .FirstOrDefaultAsync();
+
+            if (employee == null)
+                return NotFound($"Employee with code {employeeCode} not found.");
+
+            return Ok(employee);
+        }
+        //get total employees in a tenant
+        [HttpGet("total-employees/{tenantId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetAll(Guid tenantId)
+        {
+            if (tenantId == Guid.Empty)
+                return BadRequest("tenantId is required.");
+
+            var totalEmployees = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId)
+                .CountAsync();
+
+            var employees = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.TenantId == tenantId)
+                .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                .Select(e => new
+                {
+                    e.EmployeeID,
+                    e.FirstName,
+                    e.LastName,
+                    e.Email,
+                    e.EmployeeCode,
+                    e.OrganizationId,
+                    e.DepartmentId,
+                    e.TenantId,
+                    e.RoleId
+                })
+                .ToListAsync();
+
+            return Ok(new { TotalEmployees = totalEmployees, Employees = employees });
+        }
+
+
+        // Helper method for hashing the password
+        private static string HashPassword(string password)
+        {
+            var data = Encoding.UTF8.GetBytes(password);
+            var hash = SHA256.HashData(data);
+            return Convert.ToHexString(hash);
+        }
+
+        // Helper method for generating a unique employee code
         private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)
         {
-            // e.g., AIKO-### from name; ensure uniqueness per tenant
             var basePart = new string($"{firstName}{lastName}".Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
             if (basePart.Length < 4) basePart = (basePart + "XXXX").Substring(0, 4);
             else basePart = basePart.Substring(0, Math.Min(6, basePart.Length));
@@ -281,7 +381,7 @@ namespace HRMS.Backend.Controllers
             {
                 var bytes = new byte[2];
                 rnd.GetBytes(bytes);
-                var suffix = (BitConverter.ToUInt16(bytes, 0) % 900 + 100); // 100-999
+                var suffix = (BitConverter.ToUInt16(bytes, 0) % 900 + 100);
                 candidate = $"{basePart}-{suffix}";
             }
             while (await _context.Employees.AnyAsync(e => e.TenantId == tenantId && e.EmployeeCode == candidate));
