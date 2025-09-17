@@ -4,6 +4,7 @@ using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRMS.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250917065114_Updating-employee")]
+    partial class Updatingemployee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -466,15 +469,15 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("gender");
 
-                    b.Property<DateTime>("HireDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("hire_date");
-
                     b.Property<string>("JobTitle")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)")
                         .HasColumnName("job_title");
+
+                    b.Property<DateTime>("JoiningDate")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("hire_date");
 
                     b.Property<string>("LastName")
                         .IsRequired()
