@@ -184,73 +184,77 @@ namespace HRMS.Backend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Trainings",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Level = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Duration = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Instructor = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    MaxEnrollment = table.Column<int>(type: "int", nullable: true),
-                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    VideoLink = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ContractFile = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Mode = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    MaxParticipant = table.Column<int>(type: "int", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Trainings", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Trainings_organizations_OrganizationId",
-                        column: x => x.OrganizationId,
-                        principalTable: "organizations",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Trainings_tenants_TenantId",
-                        column: x => x.TenantId,
-                        principalTable: "tenants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "users",
+                name: "training_programs",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    full_name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
-                    phone_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    password = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    role = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    username = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    organization_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                    tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    organization_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    category = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    level = table.Column<int>(type: "int", nullable: false),
+                    duration_hours = table.Column<int>(type: "int", nullable: false),
+                    instructor_name = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
+                    max_enrollment = table.Column<int>(type: "int", nullable: true),
+                    start_date_utc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    end_date_utc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_users", x => x.id);
+                    table.PrimaryKey("PK_training_programs", x => x.id);
                     table.ForeignKey(
-                        name: "FK_users_organizations_organization_id",
+                        name: "FK_training_programs_organizations_organization_id",
                         column: x => x.organization_id,
                         principalTable: "organizations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "training_materials",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    program_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    url = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    file_path = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    uploaded_at_utc = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_training_materials", x => x.id);
                     table.ForeignKey(
-                        name: "FK_users_tenants_TenantId",
-                        column: x => x.TenantId,
-                        principalTable: "tenants",
-                        principalColumn: "Id");
+                        name: "FK_training_materials_training_programs_program_id",
+                        column: x => x.program_id,
+                        principalTable: "training_programs",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "training_sessions",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    program_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    starts_at_utc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ends_at_utc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    location = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    is_online = table.Column<bool>(type: "bit", nullable: false),
+                    meeting_link = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_training_sessions", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_training_sessions_training_programs_program_id",
+                        column: x => x.program_id,
+                        principalTable: "training_programs",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -258,22 +262,30 @@ namespace HRMS.Backend.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Message = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DepartmentId = table.Column<int>(type: "int", nullable: true),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Destination = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Categories = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Announcementcontent = table.Column<string>(type: "nvarchar(max)", maxLength: 5000, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<int>(type: "int", nullable: false),
-                    DepartmentId1 = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    CreatorEmployeeID = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    DepartmentID = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    TenantID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OrganizationID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Announcements", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Announcements_organizations_OrganizationId",
-                        column: x => x.OrganizationId,
+                        name: "FK_Announcements_organizations_OrganizationID",
+                        column: x => x.OrganizationID,
                         principalTable: "organizations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Announcements_tenants_TenantID",
+                        column: x => x.TenantID,
+                        principalTable: "tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -400,7 +412,7 @@ namespace HRMS.Backend.Migrations
                     department_code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     department_head_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     parent_department_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    InitialEmployeeCount = table.Column<int>(type: "int", nullable: false)
+                    InitialEmployeeCount = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -730,31 +742,114 @@ namespace HRMS.Backend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TrainingEnrollments",
+                name: "training_enrollments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    TrainingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AttendanceStatus = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Feedback = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    EnrolledOn = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    program_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    employee_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    enrolled_on_utc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    progress_percent = table.Column<int>(type: "int", nullable: false),
+                    completed_on_utc = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TrainingEnrollments", x => x.Id);
+                    table.PrimaryKey("PK_training_enrollments", x => x.id);
                     table.ForeignKey(
-                        name: "FK_TrainingEnrollments_Trainings_TrainingId",
-                        column: x => x.TrainingId,
-                        principalTable: "Trainings",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_TrainingEnrollments_employees_EmployeeId",
-                        column: x => x.EmployeeId,
+                        name: "FK_training_enrollments_employees_employee_id_tenant_id",
+                        columns: x => new { x.employee_id, x.tenant_id },
                         principalTable: "employees",
+                        principalColumns: new[] { "id", "tenant_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_training_enrollments_training_programs_program_id",
+                        column: x => x.program_id,
+                        principalTable: "training_programs",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "training_feedback",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    program_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    employee_id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    rating = table.Column<int>(type: "int", nullable: false),
+                    comment = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    submitted_on_utc = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_training_feedback", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_training_feedback_employees_employee_id_tenant_id",
+                        columns: x => new { x.employee_id, x.tenant_id },
+                        principalTable: "employees",
+                        principalColumns: new[] { "id", "tenant_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_training_feedback_training_programs_program_id",
+                        column: x => x.program_id,
+                        principalTable: "training_programs",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "users",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    full_name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    normalized_email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    phone_number = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    username = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    normalized_username = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    password_hash = table.Column<byte[]>(type: "varbinary(max)", nullable: false),
+                    password_salt = table.Column<byte[]>(type: "varbinary(max)", nullable: false),
+                    role = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    organization_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    employee_id = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    is_active = table.Column<bool>(type: "bit", nullable: false),
+                    access_failed_count = table.Column<int>(type: "int", nullable: false),
+                    lockout_end_utc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    email_confirmed = table.Column<bool>(type: "bit", nullable: false),
+                    phone_confirmed = table.Column<bool>(type: "bit", nullable: false),
+                    two_factor_enabled = table.Column<bool>(type: "bit", nullable: false),
+                    tfa_secret = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    security_stamp = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    last_login_utc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    created_at = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    updated_at = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    row_version = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_users", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_users_employees_employee_id",
+                        column: x => x.employee_id,
+                        principalTable: "employees",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_users_organizations_organization_id",
+                        column: x => x.organization_id,
+                        principalTable: "organizations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_users_tenants_tenant_id",
+                        column: x => x.tenant_id,
+                        principalTable: "tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -783,6 +878,32 @@ namespace HRMS.Backend.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "refresh_tokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Token = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    JwtId = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2(3)", nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "datetime2(3)", nullable: false),
+                    RevokedAtUtc = table.Column<DateTime>(type: "datetime2(3)", nullable: true),
+                    ReplacedByToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IpAddress = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UserAgent = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_refresh_tokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_refresh_tokens_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.InsertData(
                 table: "roles",
                 columns: new[] { "id", "description", "is_system", "name", "permissions", "tenant_id" },
@@ -796,19 +917,19 @@ namespace HRMS.Backend.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Announcements_CreatorEmployeeID",
+                name: "IX_Announcements_DepartmentID",
                 table: "Announcements",
-                column: "CreatorEmployeeID");
+                column: "DepartmentID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Announcements_DepartmentId1",
+                name: "IX_Announcements_OrganizationID",
                 table: "Announcements",
-                column: "DepartmentId1");
+                column: "OrganizationID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Announcements_OrganizationId",
+                name: "IX_Announcements_TenantID",
                 table: "Announcements",
-                column: "OrganizationId");
+                column: "TenantID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_applicants_JobId",
@@ -1037,6 +1158,17 @@ namespace HRMS.Backend.Migrations
                 column: "ReviewerId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_refresh_tokens_Token",
+                table: "refresh_tokens",
+                column: "Token",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_refresh_tokens_UserId",
+                table: "refresh_tokens",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RequestFeedbacks_EmployeeId",
                 table: "RequestFeedbacks",
                 column: "EmployeeId");
@@ -1065,24 +1197,64 @@ namespace HRMS.Backend.Migrations
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TrainingEnrollments_EmployeeId",
-                table: "TrainingEnrollments",
-                column: "EmployeeId");
+                name: "IX_training_enrollments_employee_id_tenant_id",
+                table: "training_enrollments",
+                columns: new[] { "employee_id", "tenant_id" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_TrainingEnrollments_TrainingId",
-                table: "TrainingEnrollments",
-                column: "TrainingId");
+                name: "IX_training_enrollments_program_id_employee_id_tenant_id",
+                table: "training_enrollments",
+                columns: new[] { "program_id", "employee_id", "tenant_id" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Trainings_OrganizationId",
-                table: "Trainings",
-                column: "OrganizationId");
+                name: "IX_training_feedback_employee_id_tenant_id",
+                table: "training_feedback",
+                columns: new[] { "employee_id", "tenant_id" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Trainings_TenantId",
-                table: "Trainings",
-                column: "TenantId");
+                name: "IX_training_feedback_program_id_employee_id_tenant_id",
+                table: "training_feedback",
+                columns: new[] { "program_id", "employee_id", "tenant_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_training_materials_program_id",
+                table: "training_materials",
+                column: "program_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_training_programs_organization_id",
+                table: "training_programs",
+                column: "organization_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_training_programs_tenant_id_organization_id_title",
+                table: "training_programs",
+                columns: new[] { "tenant_id", "organization_id", "title" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_training_sessions_program_id_starts_at_utc",
+                table: "training_sessions",
+                columns: new[] { "program_id", "starts_at_utc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_employee_id",
+                table: "users",
+                column: "employee_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_normalized_email",
+                table: "users",
+                column: "normalized_email",
+                unique: true,
+                filter: "[normalized_email] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_normalized_username",
+                table: "users",
+                column: "normalized_username",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_users_organization_id",
@@ -1090,24 +1262,22 @@ namespace HRMS.Backend.Migrations
                 column: "organization_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_users_TenantId",
+                name: "IX_users_tenant_id",
                 table: "users",
-                column: "TenantId");
+                column: "tenant_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_username",
+                table: "users",
+                column: "username",
+                unique: true);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Announcements_departments_DepartmentId1",
+                name: "FK_Announcements_departments_DepartmentID",
                 table: "Announcements",
-                column: "DepartmentId1",
+                column: "DepartmentID",
                 principalTable: "departments",
                 principalColumn: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Announcements_employees_CreatorEmployeeID",
-                table: "Announcements",
-                column: "CreatorEmployeeID",
-                principalTable: "employees",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_applicants_jobs_JobId",
@@ -1188,6 +1358,9 @@ namespace HRMS.Backend.Migrations
                 name: "performance_reviews");
 
             migrationBuilder.DropTable(
+                name: "refresh_tokens");
+
+            migrationBuilder.DropTable(
                 name: "RequestFeedbacks");
 
             migrationBuilder.DropTable(
@@ -1197,10 +1370,16 @@ namespace HRMS.Backend.Migrations
                 name: "TenantSettings");
 
             migrationBuilder.DropTable(
-                name: "TrainingEnrollments");
+                name: "training_enrollments");
 
             migrationBuilder.DropTable(
-                name: "users");
+                name: "training_feedback");
+
+            migrationBuilder.DropTable(
+                name: "training_materials");
+
+            migrationBuilder.DropTable(
+                name: "training_sessions");
 
             migrationBuilder.DropTable(
                 name: "applicants");
@@ -1209,7 +1388,10 @@ namespace HRMS.Backend.Migrations
                 name: "LeaveTypes");
 
             migrationBuilder.DropTable(
-                name: "Trainings");
+                name: "users");
+
+            migrationBuilder.DropTable(
+                name: "training_programs");
 
             migrationBuilder.DropTable(
                 name: "jobs");

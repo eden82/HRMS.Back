@@ -100,6 +100,7 @@ namespace HRMS.Backend.Controllers
                 CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
                 BenefitsEnrollment = dto.BenefitsEnrollment,
                 ShiftDetails = dto.ShiftDetails,
+                LeaveCredit = dto.LeaveCredit,
 
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

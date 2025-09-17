@@ -4,6 +4,7 @@ using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRMS.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250915105102_AddLeaveCreditToEmployee")]
+    partial class AddLeaveCreditToEmployee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -476,9 +479,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("hire_date");
 
-                    b.Property<DateTime>("LastCreditUpdate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -681,7 +681,7 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                    b.Property<Guid?>("ApplicantId")
+                    b.Property<Guid>("ApplicantId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int?>("Duration")
@@ -710,9 +710,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<DateTime?>("ScheduledOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("ShortlistId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -722,8 +719,6 @@ namespace HRMS.Backend.Migrations
                     b.HasIndex("ApplicantId");
 
                     b.HasIndex("InterviewerId");
-
-                    b.HasIndex("ShortlistId");
 
                     b.ToTable("Interviews");
                 });
@@ -832,9 +827,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("tenant_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -2075,23 +2067,19 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Interview", b =>
                 {
-                    b.HasOne("HRMS.Backend.Models.Applicant", null)
+                    b.HasOne("HRMS.Backend.Models.Applicant", "Applicant")
                         .WithMany("Interviews")
-                        .HasForeignKey("ApplicantId");
+                        .HasForeignKey("ApplicantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("HRMS.Backend.Models.Employee", "Interviewer")
                         .WithMany()
                         .HasForeignKey("InterviewerId");
 
-                    b.HasOne("HRMS.Backend.Models.Shortlist", "Shortlist")
-                        .WithMany()
-                        .HasForeignKey("ShortlistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Applicant");
 
                     b.Navigation("Interviewer");
-
-                    b.Navigation("Shortlist");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Job", b =>

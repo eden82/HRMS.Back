@@ -80,7 +80,10 @@ namespace HRMS.Backend.Controllers
                 .Where(g => g.Id == goal.Id)
                 .Select(g => new
                 {
-                    EmployeeName = g.Employee.FirstName + " " + g.Employee.LastName,
+                    EmployeeName = g.Employee != null
+                        ? g.Employee.FirstName + " " + g.Employee.LastName
+                        : "Unknown",
+
                     GoalTitle = g.GoalTitle,
                     Category = g.Category,
                     Priority = g.Priority,
@@ -104,32 +107,60 @@ namespace HRMS.Backend.Controllers
         }
 
 
-        // UPDATE Goal
+        // UPDATE goal
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateGoal(Guid id, [FromBody] GoalDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var goal = await _context.Goals
+                .Include(g => g.Employee)
+                .FirstOrDefaultAsync(g => g.Id == id);
 
-            var existingGoal = await _context.Goals.FindAsync(id);
-            if (existingGoal == null)
+            if (goal == null)
                 return NotFound(new { message = "Goal not found" });
 
-            existingGoal.EmployeeID = dto.EmployeeID!.Value;
-            existingGoal.OrganizationID = dto.OrganizationID!.Value;
-            existingGoal.TenantID = dto.TenantID!.Value;
-            existingGoal.GoalTitle = dto.GoalTitle;
-            existingGoal.Category = dto.Category;
-            existingGoal.Priority = dto.Priority;
-            existingGoal.Status = dto.Status;
-            existingGoal.DueDate = dto.DueDate;
-            existingGoal.Description = dto.Description;
+            // Apply updates
+            goal.GoalTitle = dto.GoalTitle;
+            goal.Category = dto.Category;
+            goal.Priority = dto.Priority;
+            goal.DueDate = dto.DueDate;
+            goal.Status = dto.Status;
+            goal.Description = dto.Description;
 
-            _context.Goals.Update(existingGoal);
+            _context.Goals.Update(goal);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Goal updated successfully" });
+            //  Get the updated goal details
+            var goalDetails = await _context.Goals
+                .Where(g => g.Id == goal.Id)
+                .Select(g => new
+                {
+                    EmployeeName = g.Employee != null
+                        ? g.Employee.FirstName + " " + g.Employee.LastName
+                        : "Unknown",
+
+                    GoalTitle = g.GoalTitle,
+                    Category = g.Category,
+                    Priority = g.Priority,
+                    DueDate = g.DueDate,
+                    Status = g.Status,
+                    Description = g.Description
+                })
+                .FirstOrDefaultAsync();
+
+            //  Get active goals count
+            var activeGoalsCount = await _context.Goals
+                .Where(g => g.Status == "Active")
+                .CountAsync();
+
+            //  Return the same structure as in Create
+            return Ok(new
+            {
+                Message = "Goal updated successfully.",
+                Goal = goalDetails,
+                ActiveGoals = activeGoalsCount
+            });
         }
+
 
 
         // DELETE Goal
@@ -156,7 +187,10 @@ namespace HRMS.Backend.Controllers
                 .Where(g => g.Id == id)
                 .Select(g => new
                 {
-                    EmployeeName = g.Employee.FirstName + " " + g.Employee.LastName,
+                    EmployeeName = g.Employee != null
+                        ? g.Employee.FirstName + " " + g.Employee.LastName
+                        : "Unknown",
+
                     GoalTitle = g.GoalTitle,
                     Category = g.Category,
                     Priority = g.Priority,
@@ -182,5 +216,49 @@ namespace HRMS.Backend.Controllers
 
             return Ok(new { ActiveGoals = activeGoalsCount });
         }
+
+
+        // GET: api/goals/search
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchGoals([FromQuery] string? goalTitle, [FromQuery] string? category)
+        {
+            if (string.IsNullOrWhiteSpace(goalTitle) && string.IsNullOrWhiteSpace(category))
+                return BadRequest("Provide either a goal title or a category.");
+
+            var query = _context.Goals.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(goalTitle))
+            {
+                var titleLower = goalTitle.Trim().ToLower();
+                query = query.Where(g => g.GoalTitle.ToLower().Contains(titleLower));
+            }
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                var categoryLower = category.Trim().ToLower();
+                query = query.Where(g => g.Category.ToLower().Contains(categoryLower));
+            }
+
+            var goals = await query
+                .Include(g => g.Employee)
+                .Select(g => new
+                {
+                    GoalId = g.Id,
+                    GoalTitle = g.GoalTitle,
+                    Category = g.Category,
+                    Priority = g.Priority,
+                    DueDate = g.DueDate,
+                    Status = g.Status,
+                    EmployeeName = g.Employee != null ? g.Employee.FirstName + " " + g.Employee.LastName : "Unknown",
+                    Description = g.Description
+                })
+                .ToListAsync();
+
+            if (!goals.Any())
+                return NotFound("No goals found for the given criteria.");
+
+            return Ok(goals);
+        }
+
     }
 }

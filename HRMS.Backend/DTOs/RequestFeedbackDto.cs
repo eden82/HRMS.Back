@@ -14,10 +14,11 @@ namespace HRMS.Backend.DTOs
 
         [Required(ErrorMessage = "FeedbackSources is required.")]
         [MaxLength(255, ErrorMessage = "FeedbackSources cannot exceed 255 characters.")]
-        public string FeedbackSources { get; set; }
+        public string FeedbackSources { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "InstructionReviewers is required.")]
         [MaxLength(500, ErrorMessage = "InstructionReviewers cannot exceed 500 characters.")]
-        public string InstructionReviewers { get; set; }
+        public string InstructionReviewers { get; set; } = string.Empty;
     }
 }
+

@@ -25,7 +25,7 @@ namespace HRMS.Backend.Controllers
         }
 
         public record LoginRequest(string UsernameOrEmail, string Password);
-        public record LoginResponse(string accessToken, DateTimeOffset expiresAt, string refreshToken, DateTimeOffset refreshExpiresAt);
+        public record LoginResponse(string accessToken, DateTimeOffset expiresAt, string refreshToken, DateTimeOffset refreshExpiresAt ,string role);
 
         [HttpPost("login")]
         public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest input)
@@ -59,9 +59,11 @@ namespace HRMS.Backend.Controllers
             var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
             var (rt, rtExp) = _jwt.CreateRefreshToken();
 
+           
+
             // If you store refresh tokens, persist rt + rtExp here
 
-            return Ok(new LoginResponse(jwt, exp, rt, rtExp));
+            return Ok(new LoginResponse(jwt, exp, rt, rtExp , user.Role));
         }
     }
 }
