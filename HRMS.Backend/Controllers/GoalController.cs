@@ -89,19 +89,33 @@ namespace HRMS.Backend.Controllers
                     Priority = g.Priority,
                     DueDate = g.DueDate,
                     Status = g.Status,
-                    Description = g.Description
+                    Description = g.Description,
+                    GoalProcess = g.GoalProcess
+
                 })
                 .FirstOrDefaultAsync();
 
+            var Employeegoal = new
+            {
+                GoalTitle = goal.GoalTitle,
+                Category = goal.Category,
+                Priority = goal.Priority,
+                DueDate = goal.DueDate,
+                Description = goal.Description,
+                GoalProcess = goal.GoalProcess
+
+            };
+
             // Get active goals count
             var activeGoalsCount = await _context.Goals
-                .Where(g => g.Status == "Active")
+                .Where(g => g.Status == "InProgress")
                 .CountAsync();
 
             return Ok(new
             {
                 Goal = goalDetails,
-                ActiveGoals = activeGoalsCount
+                ActiveGoals = activeGoalsCount,
+                Employeegoal = Employeegoal
             });
             //return CreatedAtAction(nameof(GetGoalById), new { id = goal.Id }, goal);
         }
@@ -259,6 +273,51 @@ namespace HRMS.Backend.Controllers
 
             return Ok(goals);
         }
+
+        // POST or PUT (update goal progress)
+        [HttpPost("{id}/updateProgress")]
+        public async Task<IActionResult> UpdateGoalProgress(Guid id, [FromBody] int newProgress)
+        {
+            var goal = await _context.Goals.FindAsync(id);
+            if (goal == null) return NotFound();
+
+            goal.GoalProcess = newProgress; // 0-100
+
+            // Update status dynamically
+            goal.Status = GetGoalStatus(goal.GoalProcess);
+
+            await _context.SaveChangesAsync();
+
+            // ---- Calculate Overall Progress After Update ----
+            var totalGoals = await _context.Goals.CountAsync();
+            var overallProgress = totalGoals > 0 ? await _context.Goals.AverageAsync(g => g.GoalProcess) : 0;
+
+            //var completedGoals = await _context.Goals.CountAsync(g => g.GoalProcess >= 100);
+            //var completionRate = totalGoals > 0 ? (completedGoals * 100.0) / totalGoals : 0;
+
+
+            return Ok(new
+            {
+                UpdatedGoal = new
+                {
+                    goal.Id,
+                    GoalProcess = goal.GoalProcess,
+                    Status = goal.Status
+                },
+                Overall = new
+                {
+                    OverallProgress = overallProgress,
+                    //CompletionRate = completionRate
+                }
+            });
+        }
+
+        // Helper method to compute status
+        private string GetGoalStatus(int progress)
+        {
+            return progress >= 100 ? "Complete" : "InProgress";
+        }
+
 
     }
 }
