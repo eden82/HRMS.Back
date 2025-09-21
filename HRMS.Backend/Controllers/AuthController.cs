@@ -6,6 +6,7 @@ using HRMS.Backend.Models;
 using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.DTOs;
 
 namespace HRMS.Backend.Controllers
 {
@@ -73,7 +74,10 @@ namespace HRMS.Backend.Controllers
             await _email.SendOtpAsync(user.Email, otp);
 
 
-            return Ok("OTP sent to your email.");
+            return Ok(new 
+            { message = "OTP sent to your email.",
+              user.Email
+            });
         }
 
         [HttpPost("verify-otp")]
@@ -101,37 +105,33 @@ namespace HRMS.Backend.Controllers
             return Ok(new LoginResponse(jwt, exp, rt, rtExp, user.Role));
         }
 
-        //[HttpPost("email-login")]
-        //public async Task<IActionResult> Login([FromBody] LoginRequest input)
-        //{
-        //    if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
-        //        return BadRequest("Email is required.");
 
-        //    var emailNorm = input.UsernameOrEmail.Trim().ToUpperInvariant();
 
-        //    // ONLY look up user by email in Users table
-        //    var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
+        [HttpPost("email-login")]
+        public async Task<IActionResult> LoginByEmail([FromBody] EmailLoginRequest input)
+        {
+            if (string.IsNullOrWhiteSpace(input.Email))
+                return BadRequest("Email is required.");
 
-        //    if (user == null || !user.IsActive)
-        //        return Unauthorized("Invalid credentials or email not registered.");
+            var emailNorm = input.Email.Trim().ToUpperInvariant();
 
-        //    // Verify password
-        //    if (!_hasher.Verify(input.Password, user.PasswordHash, user.PasswordSalt))
-        //    {
-        //        user.AccessFailedCount++;
-        //        await _db.SaveChangesAsync();
-        //        return Unauthorized("Invalid credentials.");
-        //    }
+            // only look up user by email in Users table
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
 
-        //    // Email must exist in user record
-        //    if (string.IsNullOrWhiteSpace(user.Email))
-        //        return BadRequest("No valid email found for this user.");
+            if (user == null || !user.IsActive)
+                return Unauthorized("Invalid credentials or email not registered.");
 
-        //    var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
-        //    var (rt, rtExp) = _jwt.CreateRefreshToken();
+            // Email must exist in user record
+            if (string.IsNullOrWhiteSpace(user.Email))
+                return BadRequest("No valid email found for this user.");
 
-        //    return Ok(new LoginResponse(jwt, exp, rt, rtExp, user.Role));
-        //}
+            //  No password check here to passwordless login
+            var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
+            var (rt, rtExp) = _jwt.CreateRefreshToken();
+
+            return Ok(new LoginResponse(jwt, exp, rt, rtExp, user.Role));
+        }
+
 
     }
 

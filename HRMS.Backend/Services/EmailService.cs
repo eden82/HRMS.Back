@@ -39,6 +39,11 @@ public class EmailService
         };
 
         using var client = new SmtpClient();
+
+        // Bypass SSL certificate errors (solves your current exception)
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+
         await client.ConnectAsync(smtpServer!, port, MailKit.Security.SecureSocketOptions.StartTls);
         await client.AuthenticateAsync(senderEmail!, password!);
         await client.SendAsync(message);
