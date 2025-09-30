@@ -108,9 +108,40 @@ namespace HRMS.Backend.Controllers
         {
             var u = await _db.Users.FindAsync(id);
             if (u == null) return NotFound();
-            u.LastLoginUtc = DateTime.UtcNow; // <-- FIXED name
+
+            u.LastLoginUtc = DateTime.UtcNow;
             await _db.SaveChangesAsync();
-            return NoContent();
+
+            return Ok(new
+            {
+                u.LastLoginUtc
+            });
         }
+
+
+
+        [HttpGet("superadmins")]
+        public async Task<IActionResult> GetSuperAdmins()
+        {
+            var superAdmins = await _db.Users
+                .AsNoTracking()
+                .Where(user => user.Role == "SuperAdmin")
+                .Select(user => new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Username,
+                    user.Email,
+                    user.PhoneNumber,
+                    user.Role,
+                    user.IsActive,
+                    user.LastLoginUtc,
+                    user.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(superAdmins);
+        }
+
     }
 }

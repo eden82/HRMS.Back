@@ -13,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173") // your frontend
+        policy.WithOrigins("http://localhost:3000") // your frontend
               .AllowAnyHeader()
               .AllowAnyMethod()
     // .AllowCredentials() // uncomment only if you actually use cookies

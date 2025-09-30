@@ -68,7 +68,7 @@ namespace HRMS.Backend.Controllers
         // POST: /api/organizations
         [HttpPost]
         [Consumes("application/json")]
-        public async Task<ActionResult<OrganizationDto>> Create([FromBody] CreateOrganizationDto input)
+        public async Task<ActionResult<OrganizationDto>> Create([FromForm] CreateOrganizationDto input)
         {
             // Treat whitespace as empty
             if (string.IsNullOrWhiteSpace(input.Domain))

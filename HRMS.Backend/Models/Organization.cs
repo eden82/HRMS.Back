@@ -25,7 +25,7 @@ namespace HRMS.Backend.Models
         [Required, MaxLength(200)]
         public string Location { get; set; } = string.Empty;
 
-        [Required, MaxLength(500)]
+        [Required]
         public string LogoUrl { get; set; } = string.Empty;
 
         // NEW: lives here now (moved from Tenant)

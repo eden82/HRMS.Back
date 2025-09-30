@@ -5,7 +5,7 @@
 namespace HRMS.Backend.Migrations
 {
     /// <inheritdoc />
-    public partial class AddGoalProcessColumn : Migration
+    public partial class OrganizationsUpdate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

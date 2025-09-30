@@ -28,29 +28,42 @@ namespace HRMS.Backend.Controllers
 
         public record LoginRequest(string UsernameOrEmail, string Password);
         public record OtpVerifyRequest(string UsernameOrEmail, string OtpCode);
-        public record LoginResponse(string accessToken, DateTimeOffset expiresAt, string refreshToken, DateTimeOffset refreshExpiresAt, string role);
+        public record ResendOtpRequest(string UsernameOrEmail);
+        public record LoginResponse(
+            string? id = null,
+            string? accessToken = null,
+            DateTimeOffset? expiresAt = null,
+            string? refreshToken = null,
+            DateTimeOffset? refreshExpiresAt = null,
+            string? role = null,
+            string? FullName = null,
+            string? email = null,
+            string? message = null,
+            bool requiresOtp = false,
+            bool otpVerified = false
+        );
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest input)
         {
-
             if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
                 return BadRequest("Email or Username is required.");
 
             var inputTrimmed = input.UsernameOrEmail.Trim();
             User? user;
+            string returnEmail;
 
-            // Check if input is an email
             if (inputTrimmed.Contains("@"))
             {
                 var emailNorm = inputTrimmed.ToUpperInvariant();
                 user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
+                returnEmail = inputTrimmed;
             }
             else
             {
-                // Input is username, get user by normalized username
                 var usernameNorm = inputTrimmed.ToUpperInvariant();
                 user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedUsername == usernameNorm);
+                returnEmail = user?.Email ?? string.Empty;
             }
 
             if (user == null || !user.IsActive) return Unauthorized("Invalid credentials.");
@@ -72,8 +85,13 @@ namespace HRMS.Backend.Controllers
 
             await _email.SendOtpAsync(user.Email, otp);
 
-
-            return Ok("OTP sent to your email.");
+            return Ok(new LoginResponse(
+                id: user.Id.ToString(),
+                email: returnEmail,
+                message: "OTP sent to your email.",
+                requiresOtp: true,
+                otpVerified: false
+            ));
         }
 
         [HttpPost("verify-otp")]
@@ -86,7 +104,6 @@ namespace HRMS.Backend.Controllers
             if (user == null || !user.IsActive) return Unauthorized("Invalid credentials.");
             if (user.OtpCode == null || user.OtpExpiryUtc < DateTime.UtcNow)
                 return Unauthorized("OTP expired.");
-
             if (user.OtpCode != input.OtpCode) return Unauthorized("Invalid OTP.");
 
             // Reset OTP
@@ -98,41 +115,50 @@ namespace HRMS.Backend.Controllers
             var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
             var (rt, rtExp) = _jwt.CreateRefreshToken();
 
-            return Ok(new LoginResponse(jwt, exp, rt, rtExp, user.Role));
+            return Ok(new LoginResponse(
+                id: user.Id.ToString(),
+                accessToken: jwt,
+                expiresAt: exp,
+                refreshToken: rt,
+                refreshExpiresAt: rtExp,
+                role: user.Role,
+                FullName: user.FullName,
+                email: user.Email,
+                requiresOtp: false,
+                otpVerified: true
+            ));
         }
 
-        //[HttpPost("email-login")]
-        //public async Task<IActionResult> Login([FromBody] LoginRequest input)
-        //{
-        //    if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
-        //        return BadRequest("Email is required.");
+        [HttpPost("resend-otp")]
+        public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest input)
+        {
+            if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
+                return BadRequest("Username or email is required.");
 
-        //    var emailNorm = input.UsernameOrEmail.Trim().ToUpperInvariant();
+            var norm = input.UsernameOrEmail.Trim().ToUpperInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(u =>
+                u.NormalizedUsername == norm || u.NormalizedEmail == norm);
 
-        //    // ONLY look up user by email in Users table
-        //    var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
+            if (user == null || !user.IsActive)
+                return Unauthorized("User not found or inactive.");
 
-        //    if (user == null || !user.IsActive)
-        //        return Unauthorized("Invalid credentials or email not registered.");
+            // Generate new OTP
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.OtpCode = otp;
+            user.OtpExpiryUtc = DateTime.UtcNow.AddMinutes(5);
+            await _db.SaveChangesAsync();
 
-        //    // Verify password
-        //    if (!_hasher.Verify(input.Password, user.PasswordHash, user.PasswordSalt))
-        //    {
-        //        user.AccessFailedCount++;
-        //        await _db.SaveChangesAsync();
-        //        return Unauthorized("Invalid credentials.");
-        //    }
+            if (string.IsNullOrWhiteSpace(user.Email))
+                return BadRequest("User does not have a valid email.");
 
-        //    // Email must exist in user record
-        //    if (string.IsNullOrWhiteSpace(user.Email))
-        //        return BadRequest("No valid email found for this user.");
+            await _email.SendOtpAsync(user.Email, otp);
 
-        //    var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
-        //    var (rt, rtExp) = _jwt.CreateRefreshToken();
-
-        //    return Ok(new LoginResponse(jwt, exp, rt, rtExp, user.Role));
-        //}
-
+            return Ok(new
+            {
+                id = user.Id.ToString(),   // <-- Added ID here
+                message = "New OTP sent to your email.",
+                email = user.Email
+            });
+        }
     }
-
 }

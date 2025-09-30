@@ -38,7 +38,14 @@ public class EmailService
             Text = $"Your OTP code is: {otp}. It expires in 5 minutes."
         };
 
+
+
+
+
         using var client = new SmtpClient();
+        // Bypass SSL certificate errors (solves your current exception)
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
         await client.ConnectAsync(smtpServer!, port, MailKit.Security.SecureSocketOptions.StartTls);
         await client.AuthenticateAsync(senderEmail!, password!);
         await client.SendAsync(message);
