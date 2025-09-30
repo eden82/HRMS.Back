@@ -64,6 +64,9 @@ namespace HRMS.Backend.Models
         public int DataRetentionYears { get; set; } = 5;
         public bool DataEncryptionAtRest { get; set; } = true;
 
+        [MaxLength(50)]
+        public string Status { get; set; } = "Active";
+
         // Navigations
         public ICollection<Organization> Organizations { get; set; } = new List<Organization>();
         public ICollection<Department> Departments { get; set; } = new List<Department>();
