@@ -29,3 +29,6 @@ Migrations/obj/
 # Ignore system files
 [Dd]esktop.ini
 [Tt]humbs.db
+
+# Ignore Entity Framework migrations
+**/Migrations/
