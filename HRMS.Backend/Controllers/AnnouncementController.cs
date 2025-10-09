@@ -3,11 +3,13 @@ using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    
     public class AnnouncementController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,6 +23,7 @@ namespace HRMS.Backend.Controllers
         // 1. CREATE ANNOUNCEMENT 
         // =====================================================
         [HttpPost]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<object>> CreateAnnouncement([FromBody] AnnouncementDTO dto)
         {
             if (!ModelState.IsValid)
@@ -115,6 +118,7 @@ namespace HRMS.Backend.Controllers
         // 3. UPDATE ANNOUNCEMENT
         // =====================================================
         [HttpPut("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> UpdateAnnouncement(Guid id, [FromBody] AnnouncementDTO dto)
         {
             if (!ModelState.IsValid)

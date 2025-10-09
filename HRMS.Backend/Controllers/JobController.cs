@@ -3,11 +3,13 @@ using HRMS.Backend.Models;
 using HRMS.Backend.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
     public class JobController : ControllerBase
     {
         private readonly AppDbContext _context;

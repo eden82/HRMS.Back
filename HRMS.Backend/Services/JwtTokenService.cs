@@ -28,6 +28,9 @@ namespace HRMS.Backend.Services
             var now = DateTimeOffset.UtcNow;
             var exp = now.AddMinutes(mins);
 
+            // Get all role names assigned to the user
+            var roleNames = user.UserRoles?.Select(ur => ur.Role.Name).ToList() ?? new List<string>();
+
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -42,9 +45,30 @@ namespace HRMS.Backend.Services
                 // Optional context claims
                 new Claim("tenant_id", user.TenantId?.ToString() ?? string.Empty),
                 new Claim("org_id", user.OrganizationId?.ToString() ?? string.Empty),
-                new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Role, user.Role ?? "User")
+                new Claim(ClaimTypes.Email, user.Email ?? string.Empty)
             };
+
+
+            // Convert the array to a list first
+            var claimsList = claims.ToList();
+
+            // Add roles
+            foreach (var roleName in roleNames)
+            {
+                claimsList.Add(new Claim(ClaimTypes.Role, roleName));
+            }
+
+            var permissions = user.UserRoles?
+                .SelectMany(ur => System.Text.Json.JsonSerializer.Deserialize<List<string>>(ur.Role.PermissionsJson) ?? new List<string>())
+                .Distinct()
+                .ToList() ?? new List<string>();
+
+            foreach (var perm in permissions)
+            {
+                claimsList.Add(new Claim("permission", perm));
+            }
+
+
 
             var credentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
@@ -54,7 +78,7 @@ namespace HRMS.Backend.Services
             var token = new JwtSecurityToken(
                 issuer: iss,
                 audience: aud,
-                claims: claims,
+                claims: claimsList,
                 notBefore: now.UtcDateTime,
                 expires: exp.UtcDateTime,
                 signingCredentials: credentials

@@ -115,13 +115,16 @@ namespace HRMS.Backend.Controllers
             var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
             var (rt, rtExp) = _jwt.CreateRefreshToken();
 
+            // Get roles from UserRoles
+            var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
+
             return Ok(new LoginResponse(
                 id: user.Id.ToString(),
                 accessToken: jwt,
                 expiresAt: exp,
                 refreshToken: rt,
                 refreshExpiresAt: rtExp,
-                role: user.Role,
+                role: string.Join(",", roles),
                 FullName: user.FullName,
                 email: user.Email,
                 requiresOtp: false,
@@ -160,5 +163,51 @@ namespace HRMS.Backend.Controllers
                 email = user.Email
             });
         }
+
+
+        [HttpPost("email-login")]
+        public async Task<IActionResult> LoginByEmail([FromBody] EmailLoginRequest input)
+        {
+            if (string.IsNullOrWhiteSpace(input.Email))
+                return BadRequest("Email is required.");
+
+            var emailNorm = input.Email.Trim().ToUpperInvariant();
+            var user = await _db.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
+
+            if (user == null || !user.IsActive)
+                return Unauthorized("Invalid email or inactive user.");
+
+            // Update last login
+            user.LastLoginUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            // Generate tokens
+            var (jwt, exp, _) = await _jwt.CreateAccessTokenAsync(user);
+            var (rt, rtExp) = _jwt.CreateRefreshToken();
+
+            // Collect roles
+            var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
+
+            return Ok(new LoginResponse(
+                id: user.Id.ToString(),
+                accessToken: jwt,
+                expiresAt: exp,
+                refreshToken: rt,
+                refreshExpiresAt: rtExp,
+                role: string.Join(",", roles),
+                FullName: user.FullName,
+                email: user.Email,
+                message: "Login successful via email.",
+                requiresOtp: false,
+                otpVerified: true
+            ));
+        }
+
+        // request model
+        public record EmailLoginRequest(string Email);
+
     }
 }

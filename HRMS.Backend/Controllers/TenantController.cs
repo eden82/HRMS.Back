@@ -6,11 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 using HRMS.Backend.Models;
 using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using HRMS.Backend.Filters;
+
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RoleAuthorize("SuperAdmin")]
     public class TenantsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -29,8 +33,35 @@ namespace HRMS.Backend.Controllers
             _context.Tenants.Add(tenant);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetTenantById), new { id = tenant.Id }, tenant);
+            // Create default tenant settings immediately
+            var tenantSetting = new TenantSetting
+            {
+                TenantId = tenant.Id,
+                EnableSSO = false,
+                SSOProvider = string.Empty,
+                RequireTwoFactorAuth = false,
+                PasswordPolicy = "8+ chars, mixed case, numbers",
+                SessionTimeout = 60,
+                EnableAuditLogging = true,
+                DefaultExportFormat = "CSV",
+                BackupFrequency = "Daily",
+                DataRetentionYears = 5,
+                DataEncryptionAtRest = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = null
+            };
+
+            _context.TenantSettings.Add(tenantSetting);
+            await _context.SaveChangesAsync();
+
+            // Return tenant + default settings (optional)
+            return CreatedAtAction(nameof(GetTenantById), new { id = tenant.Id }, new
+            {
+                tenant,
+                tenantSetting
+            });
         }
+
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetTenantById(Guid id)
@@ -69,19 +100,6 @@ namespace HRMS.Backend.Controllers
             t.Recruitment = body.Recruitment;
             t.PerformanceManagement = body.PerformanceManagement;
             t.TrainingDevelopment = body.TrainingDevelopment;
-            t.EnableSSO = body.EnableSSO;
-            t.SSOProvider = body.SSOProvider;
-            t.RequireTwoFactorAuth = body.RequireTwoFactorAuth;
-            t.PasswordPolicy = body.PasswordPolicy;
-            t.SessionTimeout = body.SessionTimeout;
-            t.EnableAuditLogging = body.EnableAuditLogging;
-            t.EmailNotifications = body.EmailNotifications;
-            t.PushNotifications = body.PushNotifications;
-            t.CriticalAlertsOnly = body.CriticalAlertsOnly;
-            t.DefaultExportFormat = body.DefaultExportFormat;
-            t.BackupFrequency = body.BackupFrequency;
-            t.DataRetentionYears = body.DataRetentionYears;
-            t.DataEncryptionAtRest = body.DataEncryptionAtRest;
 
             t.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();

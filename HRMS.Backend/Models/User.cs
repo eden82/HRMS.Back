@@ -42,10 +42,6 @@ namespace HRMS.Backend.Models
         [Column("password_salt"), Required]
         public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
 
-        // Optional display label; real permissions should come from Role/EmployeeRole tables
-        [Column("role"), MaxLength(50)]
-        public string Role { get; set; } = "User";
-
         // Multi-tenant scope (optional)
         [Column("tenant_id")]
         public Guid? TenantId { get; set; }
@@ -104,6 +100,9 @@ namespace HRMS.Backend.Models
         // 2FA fields
         public string? OtpCode { get; set; }
         public DateTime? OtpExpiryUtc { get; set; }
+
+
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
 
     }

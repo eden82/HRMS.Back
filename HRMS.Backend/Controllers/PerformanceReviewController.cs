@@ -4,11 +4,13 @@ using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
     public class PerformanceReviewController : ControllerBase
     {
         private readonly AppDbContext _context;

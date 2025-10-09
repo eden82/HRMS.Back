@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
     public class RequestFeedbackController : ControllerBase
     {
         private readonly AppDbContext _context;

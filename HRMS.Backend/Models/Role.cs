@@ -12,11 +12,6 @@ namespace HRMS.Backend.Models
         [Column("id")]
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        // Null = global/system role (e.g., SuperAdmin across tenants)
-        [Column("tenant_id")]
-        public Guid? TenantId { get; set; }
-        public Tenant? Tenant { get; set; }
-
         [Required, MaxLength(100)]
         [Column("name")]
         public string Name { get; set; } = string.Empty;
@@ -32,6 +27,8 @@ namespace HRMS.Backend.Models
         [Column("is_system")]
         public bool IsSystem { get; set; } = false;
 
-        public ICollection<EmployeeRole> Members { get; set; } = new List<EmployeeRole>();
+
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
     }
 }

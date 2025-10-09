@@ -7,12 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/departments")]
     [Produces("application/json")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
     public class DepartmentsController : ControllerBase
     {
         private readonly AppDbContext _context;

@@ -15,7 +15,6 @@ namespace HRMS.Backend.Data
         public DbSet<Department> Departments => Set<Department>();
         public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<Attendance> Attendances => Set<Attendance>();
-        public DbSet<EmployeeRole> EmployeeRoles => Set<EmployeeRole>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<Job> Jobs => Set<Job>();
@@ -40,6 +39,8 @@ namespace HRMS.Backend.Data
 
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<FeedbackResponse> FeedbackResponses => Set<FeedbackResponse>();
+        public DbSet<UserRole> UserRoles => Set<UserRole>();
+
 
 
         protected override void OnModelCreating(ModelBuilder model)
@@ -423,13 +424,6 @@ namespace HRMS.Backend.Data
                 e.Property(r => r.Description).HasMaxLength(200);
                 e.Property(r => r.PermissionsJson).HasColumnName("permissions"); // nvarchar(max) by default
 
-                e.HasOne(r => r.Tenant)
-                 .WithMany(t => t.Roles)
-                 .HasForeignKey(r => r.TenantId)
-                 .OnDelete(DeleteBehavior.Restrict);
-
-                // Unique per tenant (NULL tenant means "system/global" set)
-                e.HasIndex(r => new { r.TenantId, r.Name }).IsUnique();
             }); 
             model.Entity<User>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Job>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
@@ -446,108 +440,63 @@ namespace HRMS.Backend.Data
             model.Entity<TenantSetting>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<OrgSetting>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
 
-            // ===== EMPLOYEE ROLES =====
-            model.Entity<EmployeeRole>(e =>
-            {
-                e.ToTable("employee_roles");
-                e.HasKey(er => er.Id);
 
-                e.HasOne(er => er.Employee)
-                 .WithMany() // you can add ICollection<EmployeeRole> Roles on Employee if you want
-                 .HasForeignKey(er => er.EmployeeId)
-                 .OnDelete(DeleteBehavior.Cascade);
+            // ===== USER ROLES RELATIONSHIP =====
+            model.Entity<UserRole>()
+                .HasOne(ur => ur.User)
+                .WithMany(u => u.UserRoles)
+                .HasForeignKey(ur => ur.UserId);
 
-                e.HasOne(er => er.Role)
-                 .WithMany(r => r.Members)
-                 .HasForeignKey(er => er.RoleId)
-                 .OnDelete(DeleteBehavior.Restrict);
+            model.Entity<UserRole>()
+                .HasOne(ur => ur.Role)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(ur => ur.RoleId);
 
-                e.HasOne(er => er.Tenant)
-                 .WithMany() // or .WithMany(t => t.EmployeeRoles) if you add nav on Tenant
-                 .HasForeignKey(er => er.TenantId)
-                 .OnDelete(DeleteBehavior.Restrict);
 
-                // Prevent duplicate assignment of the same role for the same employee in the same tenant
-                e.HasIndex(er => new { er.EmployeeId, er.RoleId, er.TenantId }).IsUnique();
-            });
-
-            // ===== SEED SYSTEM ROLES (global, TenantId = NULL) =====
+            // ===== SEED SYSTEM ROLES =====
+            // Predefined IDs for consistency
             var ROLE_SUPERADMIN = Guid.Parse("00000000-0000-0000-0000-000000000001");
-            var ROLE_TENANT_HR = Guid.Parse("00000000-0000-0000-0000-000000000002");
-            var ROLE_EMPLOYEE = Guid.Parse("00000000-0000-0000-0000-000000000003");
-            var ROLE_MANAGER = Guid.Parse("00000000-0000-0000-0000-000000000004");
-            var ROLE_SUBMANAGER = Guid.Parse("00000000-0000-0000-0000-000000000005");
+            var ROLE_SYSTEM_ADMIN = Guid.Parse("00000000-0000-0000-0000-000000000002");
+            var ROLE_HR = Guid.Parse("00000000-0000-0000-0000-000000000003");
+            var ROLE_EMPLOYEE = Guid.Parse("00000000-0000-0000-0000-000000000004");
 
-            // Keep permissions short & clear. You’ll check them in policies/handlers.
+            // Seed roles
             model.Entity<Role>().HasData(
                 new Role
                 {
                     Id = ROLE_SUPERADMIN,
-                    TenantId = null,
                     Name = "SuperAdmin",
-                    Description = "Full cross-tenant access",
+                    Description = "Full system access",
                     IsSystem = true,
-                    PermissionsJson = "[\"*\"]" // wildcard = everything
+                    PermissionsJson = "[\"*\"]"
                 },
                 new Role
                 {
-                    Id = ROLE_TENANT_HR,
-                    TenantId = null,
-                    Name = "HRAdmin",
-                    Description = "Tenant-wide HR/admin; approve leave",
+                    Id = ROLE_SYSTEM_ADMIN,
+                    Name = "SystemAdmin",
+                    Description = "Tenant admin access",
                     IsSystem = true,
-                    PermissionsJson =
-                        "[" +
-                          "\"tenant.manage\"," +
-                          "\"employees.read\",\"employees.create\",\"employees.update\",\"employees.delete\"," +
-                          "\"departments.read\",\"departments.create\",\"departments.update\",\"departments.delete\"," +
-                          "\"leave.read\",\"leave.approve\"," +
-                          "\"attendance.read\",\"attendance.edit\"" +
-                        "]"
+                    PermissionsJson = "[\"Manage Setting\",\"AdminPage\",\"Employee Portal\"]"
+                },
+                new Role
+                {
+                    Id = ROLE_HR,
+                    Name = "HR",
+                    Description = "Human resources access",
+                    IsSystem = true,
+                    PermissionsJson = "[\"Employee Management\",\"Department Management\",\"Attendance Management\",\"Leave Management\",\"Recruitment and ATS\",\"Performance Management\",\"Training and Development Management\",\"Announcement Management\",\"Employee Portal\"]"
                 },
                 new Role
                 {
                     Id = ROLE_EMPLOYEE,
-                    TenantId = null,
                     Name = "Employee",
-                    Description = "Standard employee self-service",
+                    Description = "Basic employee access",
                     IsSystem = true,
-                    PermissionsJson =
-                        "[" +
-                          "\"self.read\",\"self.update\"," +
-                          "\"attendance.clock\",\"attendance.read.self\"," +
-                          "\"leave.request\",\"leave.read.self\"" +
-                        "]"
-                },
-                new Role
-                {
-                    Id = ROLE_MANAGER,
-                    TenantId = null,
-                    Name = "Manager",
-                    Description = "Manage team in same department; approve leave in dept",
-                    IsSystem = true,
-                    PermissionsJson =
-                        "[" +
-                          "\"employees.read.dept\",\"employees.update.dept\"," +
-                          "\"leave.read.dept\",\"leave.approve.dept\"," +
-                          "\"attendance.read.dept\"" +
-                        "]"
-                },
-                new Role
-                {
-                    Id = ROLE_SUBMANAGER,
-                    TenantId = null,
-                    Name = "SubManager",
-                    Description = "Read-only for team in dept; review leave",
-                    IsSystem = true,
-                    PermissionsJson =
-                        "[" +
-                          "\"employees.read.dept\"," +
-                          "\"leave.read.dept\"," +
-                          "\"attendance.read.dept\"" +
-                        "]"
+                    PermissionsJson = "[\"Employee Portal\"]"
                 }
             );
+
+
 
             /* ===== Applicants (JobId => GUID) ===== */
             model.Entity<Applicant>(e =>

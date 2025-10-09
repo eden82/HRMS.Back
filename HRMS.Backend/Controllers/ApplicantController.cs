@@ -3,6 +3,7 @@ using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
@@ -71,8 +72,6 @@ namespace HRMS.Backend.Controllers
             {
                 displayJson = displayJson,
                 totalApplicant = totalApplicant
-
-
             };
 
             return Ok(ApplicantJson);
@@ -83,6 +82,7 @@ namespace HRMS.Backend.Controllers
         // READ - Get All Applicants
         // ==================================
         [HttpGet]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetAllApplicants()
         {
             var applicants = await _context.Applicants
@@ -109,6 +109,7 @@ namespace HRMS.Backend.Controllers
         // READ - Get Applicant by ID
         // ==================================
         [HttpGet("{id:guid}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetApplicantById(Guid id)
         {
             var applicant = await _context.Applicants
@@ -161,6 +162,7 @@ namespace HRMS.Backend.Controllers
         // DELETE - Remove Applicant
         // ==================================
         [HttpDelete("{id:guid}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> DeleteApplicant(Guid id)
         {
             var applicant = await _context.Applicants.FindAsync(id);
@@ -193,6 +195,7 @@ namespace HRMS.Backend.Controllers
 
         // Download resume (get ResumeUrl)
         [HttpGet("{id:guid}/resume")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetResumeUrl(Guid id)
         {
             var applicant = await _context.Applicants.FindAsync(id);
@@ -204,6 +207,7 @@ namespace HRMS.Backend.Controllers
 
         // Total Applicants
         [HttpGet("total")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetTotalApplicants()
         {
             var total = await _context.Applicants.CountAsync();
@@ -212,6 +216,7 @@ namespace HRMS.Backend.Controllers
 
         // GET: api/applicants/search
         [HttpGet("search")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetApplicantsByNameAndPosition(
             [FromQuery] string? name,
             [FromQuery] string? position)

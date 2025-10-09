@@ -48,22 +48,6 @@ namespace HRMS.Backend.Models
         public bool PerformanceManagement { get; set; } = false;
         public bool TrainingDevelopment { get; set; } = false;
 
-        public bool EnableSSO { get; set; } = false;
-        public string SSOProvider { get; set; } = string.Empty;
-        public bool RequireTwoFactorAuth { get; set; } = false;
-        public string PasswordPolicy { get; set; } = "8+ chars, mixed case, numbers";
-        public int SessionTimeout { get; set; } = 60;
-        public bool EnableAuditLogging { get; set; } = true;
-
-        public bool EmailNotifications { get; set; } = true;
-        public bool PushNotifications { get; set; } = false;
-        public bool CriticalAlertsOnly { get; set; } = false;
-
-        public string DefaultExportFormat { get; set; } = "CSV";
-        public string BackupFrequency { get; set; } = "Daily";
-        public int DataRetentionYears { get; set; } = 5;
-        public bool DataEncryptionAtRest { get; set; } = true;
-
         [MaxLength(50)]
         public string Status { get; set; } = "Active";
 
@@ -75,5 +59,6 @@ namespace HRMS.Backend.Models
         public ICollection<Role> Roles { get; set; } = new List<Role>();
         public ICollection<User> Users { get; set; } = new List<User>();
         public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
+
     }
 }

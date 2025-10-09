@@ -6,11 +6,14 @@ using HRMS.Backend.Models;
 using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
+
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RoleAuthorize("SuperAdmin")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -66,24 +69,50 @@ namespace HRMS.Backend.Controllers
                 PhoneNumber = input.PhoneNumber,
                 PasswordHash = hash,
                 PasswordSalt = salt,
-                Role = input.Role,
                 TenantId = input.TenantId,
                 OrganizationId = input.OrganizationId,
                 EmployeeId = input.EmployeeId,
                 SecurityStamp = Guid.NewGuid().ToString("N"),
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UserRoles = new List<UserRole>() //  initialize here
             };
+
+            // Add role mapping
+            var roleId = await _db.Roles
+                .Where(r => r.Name.ToUpper() == input.Role.ToUpper()) // case-insensitive
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (roleId == Guid.Empty)
+            {
+                return BadRequest($"Role '{input.Role}' does not exist.");
+            }
+
+            user.UserRoles.Add(new UserRole
+            {
+                UserId = user.Id,
+                RoleId = roleId
+            });
 
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { user.Id, user.FullName, user.Username, user.Email });
+
+            return CreatedAtAction(nameof(GetById), new { id = user.Id },
+                new { user.Id, user.FullName, user.Username, user.Email, Role = input.Role });
         }
+
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
             if (user == null) return NotFound();
+
             return Ok(new
             {
                 user.Id,
@@ -91,7 +120,7 @@ namespace HRMS.Backend.Controllers
                 user.Username,
                 user.Email,
                 user.PhoneNumber,
-                user.Role,
+                Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
                 user.TenantId,
                 user.OrganizationId,
                 user.EmployeeId,
@@ -101,6 +130,7 @@ namespace HRMS.Backend.Controllers
                 user.UpdatedAt
             });
         }
+
 
         // Example where the old error happened – ensure we use LastLoginUtc (not LastLoginAtUtc)
         [HttpPost("{id:guid}/touch-login")]
@@ -125,7 +155,9 @@ namespace HRMS.Backend.Controllers
         {
             var superAdmins = await _db.Users
                 .AsNoTracking()
-                .Where(user => user.Role == "SuperAdmin")
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.UserRoles.Any(ur => ur.Role!.Name == "SuperAdmin"))
                 .Select(user => new
                 {
                     user.Id,
@@ -133,7 +165,7 @@ namespace HRMS.Backend.Controllers
                     user.Username,
                     user.Email,
                     user.PhoneNumber,
-                    user.Role,
+                    Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
                     user.IsActive,
                     user.LastLoginUtc,
                     user.CreatedAt
@@ -142,6 +174,8 @@ namespace HRMS.Backend.Controllers
 
             return Ok(superAdmins);
         }
+
+
 
     }
 }

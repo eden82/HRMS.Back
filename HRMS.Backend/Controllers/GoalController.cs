@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
 using HRMS.Backend.DTOs;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
@@ -21,6 +22,7 @@ namespace HRMS.Backend.Controllers
 
         // READ All Goals
         [HttpGet]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<IEnumerable<Goal>>> GetGoals()
         {
             var goals = await _context.Goals.ToListAsync();
@@ -29,6 +31,7 @@ namespace HRMS.Backend.Controllers
 
         // READ Goal by ID
         [HttpGet("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<Goal>> GetGoalById(Guid id)
         {
             var goal = await _context.Goals.FindAsync(id);
@@ -40,6 +43,7 @@ namespace HRMS.Backend.Controllers
 
         // GET Distinct Categories
         [HttpGet("categories")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<IEnumerable<string>>> GetCategories()
         {
             var categories = await _context.Goals
@@ -53,6 +57,7 @@ namespace HRMS.Backend.Controllers
 
         // CREATE Goal
         [HttpPost]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<Goal>> CreateGoal([FromBody] GoalDto dto)
         {
             if (!ModelState.IsValid)
@@ -123,6 +128,7 @@ namespace HRMS.Backend.Controllers
 
         // UPDATE goal
         [HttpPut("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> UpdateGoal(Guid id, [FromBody] GoalDto dto)
         {
             var goal = await _context.Goals
@@ -179,6 +185,7 @@ namespace HRMS.Backend.Controllers
 
         // DELETE Goal
         [HttpDelete("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> DeleteGoal(Guid id)
         {
             var goal = await _context.Goals.FindAsync(id);
@@ -195,6 +202,7 @@ namespace HRMS.Backend.Controllers
        
         // GET Goal Details by ID
         [HttpGet("details/{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetGoalDetailsById(Guid id)
         {
             var goal = await _context.Goals
@@ -222,6 +230,7 @@ namespace HRMS.Backend.Controllers
 
         // GET Active Goal Count
         [HttpGet("active/count")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetActiveGoalCount()
         {
             var activeGoalsCount = await _context.Goals
@@ -234,6 +243,7 @@ namespace HRMS.Backend.Controllers
 
         // GET: api/goals/search
         [HttpGet("search")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> SearchGoals([FromQuery] string? goalTitle, [FromQuery] string? category)
         {
             if (string.IsNullOrWhiteSpace(goalTitle) && string.IsNullOrWhiteSpace(category))

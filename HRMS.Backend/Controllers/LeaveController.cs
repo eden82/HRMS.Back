@@ -3,6 +3,7 @@ using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
@@ -57,6 +58,7 @@ namespace HRMS.Backend.Controllers
 
         //  GET ALL LEAVE REQUESTS
         [HttpGet("requests")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<IEnumerable<LeaveRequestDto>>> GetAllLeaveRequests()
         {
             var leaves = await _context.Leaves
@@ -78,6 +80,7 @@ namespace HRMS.Backend.Controllers
 
         //  GET ALL UNIQUE STATUSES
         [HttpGet("statuses")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> GetAllStatuses()
         {
             var statuses = await _context.Leaves
@@ -90,6 +93,7 @@ namespace HRMS.Backend.Controllers
 
         //  UPDATE LEAVE STATUS
         [HttpPut("{id}/status")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> UpdateLeaveStatus(Guid id, [FromBody] UpdateLeaveStatusDto dto)
         {
             try
@@ -355,6 +359,7 @@ namespace HRMS.Backend.Controllers
 
         // DELETE: api/leave/{id}
         [HttpDelete("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> DeleteLeaveRequest(Guid id)
         {
             var leave = await _context.Leaves.FindAsync(id);

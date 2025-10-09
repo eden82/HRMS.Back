@@ -7,12 +7,14 @@ using HRMS.Backend.Data;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/orgsettings")]
     [Produces("application/json")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin")]
     public class OrgSettingsController : ControllerBase
     {
         private readonly AppDbContext _context;

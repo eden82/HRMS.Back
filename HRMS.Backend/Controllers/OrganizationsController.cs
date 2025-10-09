@@ -8,13 +8,14 @@ using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
 using HRMS.Backend.DTOs;
+using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/organizations")]
-    [Route("api/organization")] // alias
     [Produces("application/json")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
     public class OrganizationsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -68,7 +69,8 @@ namespace HRMS.Backend.Controllers
         // POST: /api/organizations
         [HttpPost]
         [Consumes("application/json")]
-        public async Task<ActionResult<OrganizationDto>> Create([FromForm] CreateOrganizationDto input)
+        [RoleAuthorize("SuperAdmin , SystemAdmin")]
+        public async Task<ActionResult<OrganizationDto>> Create([FromBody] CreateOrganizationDto input)
         {
             // Treat whitespace as empty
             if (string.IsNullOrWhiteSpace(input.Domain))
