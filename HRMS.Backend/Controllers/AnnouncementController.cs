@@ -256,6 +256,7 @@ namespace HRMS.Backend.Controllers
         // 5. DELETE ANNOUNCEMENT 
         // =====================================================
         [HttpDelete("{id}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> DeleteAnnouncement(Guid id)
         {
             var announcement = await _context.Announcements.FindAsync(id);
@@ -268,7 +269,10 @@ namespace HRMS.Backend.Controllers
             return Ok(new { message = "Announcement deleted successfully" });
         }
 
+
+        //Get(search) by title and Categories
         [HttpGet("search")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> SearchAnnouncements([FromQuery] string? title, [FromQuery] string? Categories)
         {
             if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(Categories))

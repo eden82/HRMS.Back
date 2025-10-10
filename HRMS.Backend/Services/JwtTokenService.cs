@@ -39,7 +39,6 @@ namespace HRMS.Backend.Services
 
                 // Helpful identity claims
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
                 new Claim("security_stamp", user.SecurityStamp),
 
                 // Optional context claims

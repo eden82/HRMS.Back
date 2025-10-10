@@ -44,17 +44,10 @@ namespace HRMS.Backend.Controllers
                 if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
             }
 
-            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
-            if (!roleExists) return BadRequest($"Role {dto.RoleId} not found.");
-
             // Uniqueness checks (per tenant)
             var emailClash = await _context.Employees.AnyAsync(e => e.TenantId == dto.TenantId && e.Email == dto.Email);
             if (emailClash) return Conflict(new { message = "Email already exists in tenant." });
 
-            // Username unique per tenant
-            var username = dto.Username.Trim();
-            var usernameClash = await _context.Employees.AnyAsync(e => e.TenantId == dto.TenantId && e.Username == username);
-            if (usernameClash) return Conflict(new { message = "Username already exists in tenant." });
 
             // EmployeeCode: generate if null/empty; ensure uniqueness per tenant
             var employeeCode = string.IsNullOrWhiteSpace(dto.EmployeeCode)
@@ -73,7 +66,6 @@ namespace HRMS.Backend.Controllers
                 TenantId = dto.TenantId,
                 OrganizationId = dto.OrganizationId,
                 DepartmentId = dto.DepartmentId,      // nullable OK
-                RoleId = dto.RoleId,
 
                 FirstName = dto.FirstName.Trim(),
                 LastName = dto.LastName.Trim(),
@@ -96,8 +88,6 @@ namespace HRMS.Backend.Controllers
                 HireDate = dto.HireDate == default ? DateTime.UtcNow : dto.HireDate,
 
                 EmployeeCode = employeeCode,
-                Username = username,
-                PasswordHash = HashPassword(dto.Password),
 
                 BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails,
                 CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
@@ -116,14 +106,12 @@ namespace HRMS.Backend.Controllers
             var createdEmployee = await _context.Employees
                 .Where(e => e.EmployeeID == entity.EmployeeID)
                 .Include(e => e.Department)  // Include Department if it exists
-                .Include(e => e.Role)        // Include Role
                 .AsNoTracking()
                 .Select(e => new
                 {
                     e.EmployeeID,
                     EmployeeName = $"{e.FirstName} {e.LastName}",
                     Department = e.Department != null ? e.Department.DepartmentName : null, // Null if no department
-                    RoleName = e.Role.Name
                 })
                 .FirstOrDefaultAsync();
 
@@ -177,9 +165,6 @@ namespace HRMS.Backend.Controllers
                 if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
             }
 
-            var roleExists = await _context.Roles.AnyAsync(r => r.Id == dto.RoleId);
-            if (!roleExists) return BadRequest($"Role {dto.RoleId} not found.");
-
             // Uniqueness checks on change
             if (!string.Equals(e.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
             {
@@ -188,13 +173,6 @@ namespace HRMS.Backend.Controllers
                 if (emailClash) return Conflict(new { message = "Email already exists in tenant." });
             }
 
-            var newUsername = dto.Username.Trim();
-            if (!string.Equals(e.Username, newUsername, StringComparison.Ordinal))
-            {
-                var usernameClash = await _context.Employees.AnyAsync(x =>
-                    x.TenantId == dto.TenantId && x.Username == newUsername && x.EmployeeID != e.EmployeeID);
-                if (usernameClash) return Conflict(new { message = "Username already exists in tenant." });
-            }
 
             string? newCode = dto.EmployeeCode;
             if (string.IsNullOrWhiteSpace(newCode))
@@ -219,12 +197,6 @@ namespace HRMS.Backend.Controllers
             e.TenantId = dto.TenantId;
             e.OrganizationId = dto.OrganizationId;
             e.DepartmentId = dto.DepartmentId;
-            e.RoleId = dto.RoleId;
-
-            e.Username = newUsername;
-            if (!string.IsNullOrWhiteSpace(dto.Password))
-                e.PasswordHash = HashPassword(dto.Password);
-
             e.FirstName = dto.FirstName.Trim();
             e.LastName = dto.LastName.Trim();
             e.DateOfBirth = dto.DateOfBirth;
@@ -354,7 +326,6 @@ namespace HRMS.Backend.Controllers
                     e.OrganizationId,
                     e.DepartmentId,
                     e.TenantId,
-                    e.RoleId
                 })
                 .ToListAsync();
 
@@ -362,13 +333,6 @@ namespace HRMS.Backend.Controllers
         }
 
 
-        // Helper method for hashing the password
-        private static string HashPassword(string password)
-        {
-            var data = Encoding.UTF8.GetBytes(password);
-            var hash = SHA256.HashData(data);
-            return Convert.ToHexString(hash);
-        }
 
         // Helper method for generating a unique employee code
         private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)

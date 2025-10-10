@@ -6,8 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace HRMS.Backend.Models
 {
     [Table("users")]
-    [Index(nameof(Username), IsUnique = true)]
-    [Index(nameof(NormalizedUsername), IsUnique = true)]
     public class User
     {
         [Key]
@@ -27,12 +25,6 @@ namespace HRMS.Backend.Models
         [Column("phone_number"), MaxLength(50)]
         public string? PhoneNumber { get; set; }
 
-        [Column("username"), Required, MaxLength(100)]
-        public string Username { get; set; } = string.Empty;
-
-        // Case-insensitive comparisons; always store e.g. ToUpperInvariant()
-        [Column("normalized_username"), Required, MaxLength(100)]
-        public string NormalizedUsername { get; set; } = string.Empty;
 
         // === Secure password storage ===
         // PBKDF2/Argon2 hash and salt stored as raw bytes (preferred)

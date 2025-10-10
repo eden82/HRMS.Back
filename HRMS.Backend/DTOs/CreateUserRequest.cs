@@ -9,7 +9,6 @@ namespace HRMS.Backend.DTOs
         public string PhoneNumber { get; set; } = null!;
         public string Password { get; set; } = null!;
         public string Role { get; set; } = null!;
-        public string? Username { get; set; }
 
         // SuperAdmin => null; Admin/others => required
         public Guid? OrganizationId { get; set; }

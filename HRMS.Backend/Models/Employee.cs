@@ -15,26 +15,15 @@ namespace HRMS.Backend.Models
         [Column("department_id")]
         public Guid? DepartmentId { get; set; }   // ← now nullable
 
-        [Required]
+
         [Column("organization_id")]
-        public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
+
+        public Organization? Organization { get; set; }
 
         [Required]
         [Column("tenant_id")]
         public Guid TenantId { get; set; }
-
-        [Required]
-        [Column("role_id")]
-        public Guid RoleId { get; set; }
-
-        // Auth / access
-        [Required, MaxLength(100)]
-        [Column("username")]
-        public string Username { get; set; } = string.Empty;    // ← required
-
-        [Required]
-        [Column("password_hash")]
-        public string PasswordHash { get; set; } = string.Empty; // ← required (store a hash, not plain text)
 
         // Personal info
         [Required, MaxLength(100)]
@@ -141,9 +130,8 @@ namespace HRMS.Backend.Models
 
         // Navs
         public Tenant Tenant { get; set; } = null!;
-        public Organization Organization { get; set; } = null!;
+
         public Department? Department { get; set; } // optional now
-        public Role Role { get; set; } = null!;
 
         public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     }

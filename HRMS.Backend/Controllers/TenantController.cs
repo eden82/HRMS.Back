@@ -25,42 +25,61 @@ namespace HRMS.Backend.Controllers
         {
             if (string.IsNullOrWhiteSpace(tenant.Domain))
                 ModelState.AddModelError(nameof(tenant.Domain), "Domain is required.");
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
             if (tenant.Id == Guid.Empty)
                 tenant.Id = Guid.NewGuid();
 
+            // Save tenant first
             _context.Tenants.Add(tenant);
             await _context.SaveChangesAsync();
 
-            // Create default tenant settings immediately
-            var tenantSetting = new TenantSetting
+            //  Declare tenantSetting outside to keep scope valid
+            TenantSetting? tenantSetting = null;
+
+            // Fetch permanent default setting
+            var permanentSetting = await _context.PermanentTenantSettings.AsNoTracking().FirstOrDefaultAsync();
+
+            if (permanentSetting != null)
             {
-                TenantId = tenant.Id,
-                EnableSSO = false,
-                SSOProvider = string.Empty,
-                RequireTwoFactorAuth = false,
-                PasswordPolicy = "8+ chars, mixed case, numbers",
-                SessionTimeout = 60,
-                EnableAuditLogging = true,
-                DefaultExportFormat = "CSV",
-                BackupFrequency = "Daily",
-                DataRetentionYears = 5,
-                DataEncryptionAtRest = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = null
-            };
+                tenantSetting = new TenantSetting
+                {
+                    TenantId = tenant.Id,
+                    EnableSSO = permanentSetting.EnableSSO,
+                    SSOProvider = permanentSetting.SSOProvider,
+                    RequireTwoFactorAuth = permanentSetting.RequireTwoFactorAuth,
+                    PasswordPolicy = permanentSetting.PasswordPolicy,
+                    SessionTimeout = permanentSetting.SessionTimeout,
+                    EnableAuditLogging = permanentSetting.EnableAuditLogging,
 
-            _context.TenantSettings.Add(tenantSetting);
-            await _context.SaveChangesAsync();
+                    EmailNotifications = permanentSetting.EmailNotifications,
+                    PushNotifications = permanentSetting.PushNotifications,
+                    CriticalAlertsOnly = permanentSetting.CriticalAlertsOnly,
 
-            // Return tenant + default settings (optional)
+                    DefaultExportFormat = permanentSetting.DefaultExportFormat,
+                    BackupFrequency = permanentSetting.BackupFrequency,
+                    DataRetentionYears = permanentSetting.DataRetentionYears,
+                    DataEncryptionAtRest = permanentSetting.DataEncryptionAtRest,
+
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.TenantSettings.Add(tenantSetting);
+                await _context.SaveChangesAsync();
+            }
+
+            // Return both even if tenantSetting = null
             return CreatedAtAction(nameof(GetTenantById), new { id = tenant.Id }, new
             {
-                tenant,
-                tenantSetting
+                Tenant = tenant,
+                TenantSetting = tenantSetting
             });
         }
+
+
 
 
         [HttpGet("{id:guid}")]
@@ -88,10 +107,6 @@ namespace HRMS.Backend.Controllers
             t.Domain = body.Domain.Trim(); // required
             t.Industry = body.Industry;
             t.Location = body.Location;
-            t.AdminFirstName = body.AdminFirstName;
-            t.AdminLastName = body.AdminLastName;
-            t.AdminEmail = body.AdminEmail;
-            t.AdminPhone = body.AdminPhone;
             t.Country = body.Country;
             t.TimeZone = body.TimeZone;
             t.EmployeeManagement = body.EmployeeManagement;

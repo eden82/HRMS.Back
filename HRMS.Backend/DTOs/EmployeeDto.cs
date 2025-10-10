@@ -7,13 +7,8 @@ namespace HRMS.Backend.DTOs
     {
         // Keys (department nullable per your spec)
         [Required] public Guid TenantId { get; set; }
-        [Required] public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid? DepartmentId { get; set; }
-        [Required] public Guid RoleId { get; set; }
-
-        // Identity & auth
-        [Required, MaxLength(100)] public string Username { get; set; } = string.Empty;
-        [Required, MinLength(8)] public string Password { get; set; } = string.Empty;
 
         // Personal
         [Required, MaxLength(100)] public string FirstName { get; set; } = string.Empty;
@@ -51,14 +46,9 @@ namespace HRMS.Backend.DTOs
     {
         [Required] public Guid EmployeeId { get; set; }
         [Required] public Guid TenantId { get; set; }
-        [Required] public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid? DepartmentId { get; set; }
-        [Required] public Guid RoleId { get; set; }
 
-        // You can keep Username required on update too (or make optional as you prefer)
-        [Required, MaxLength(100)] public string Username { get; set; } = string.Empty;
-        // Optional: only send when changing password
-        public string? Password { get; set; }
 
         [Required, MaxLength(100)] public string FirstName { get; set; } = string.Empty;
         [Required, MaxLength(100)] public string LastName { get; set; } = string.Empty;
@@ -92,7 +82,7 @@ namespace HRMS.Backend.DTOs
     {
         public Guid EmployeeID { get; set; }
         public Guid TenantId { get; set; }
-        public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid? DepartmentId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -105,7 +95,7 @@ namespace HRMS.Backend.DTOs
     {
         public Guid EmployeeID { get; set; }
         public Guid TenantId { get; set; }
-        public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid? DepartmentId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }

@@ -15,12 +15,6 @@ namespace HRMS.Backend.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
-        // Extras
-        public string AdminFirstName { get; set; } = string.Empty;
-        public string AdminLastName { get; set; } = string.Empty;
-        public string AdminEmail { get; set; } = string.Empty;
-        public string AdminPhone { get; set; } = string.Empty;
-
         public string Country { get; set; } = string.Empty;
         public string TimeZone { get; set; } = string.Empty;
 
@@ -42,11 +36,6 @@ namespace HRMS.Backend.DTOs
         public string? Industry { get; set; }
         public string? Location { get; set; }
 
-        // Extras
-        public string AdminFirstName { get; set; } = string.Empty;
-        public string AdminLastName { get; set; } = string.Empty;
-        public string AdminEmail { get; set; } = string.Empty;
-        public string AdminPhone { get; set; } = string.Empty;
 
         public string Country { get; set; } = string.Empty;
         public string TimeZone { get; set; } = string.Empty;

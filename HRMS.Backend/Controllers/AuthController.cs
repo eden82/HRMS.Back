@@ -43,63 +43,57 @@ namespace HRMS.Backend.Controllers
             bool otpVerified = false
         );
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest input)
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest input)
+    {
+        if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
+            return BadRequest("Email is required.");
+
+        var emailTrimmed = input.UsernameOrEmail.Trim();
+        var emailNorm = emailTrimmed.ToUpperInvariant();
+
+        var user = await _db.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
+
+        if (user == null || !user.IsActive)
+            return Unauthorized("Invalid email or inactive user.");
+
+        if (!_hasher.Verify(input.Password, user.PasswordHash, user.PasswordSalt))
         {
-            if (string.IsNullOrWhiteSpace(input.UsernameOrEmail))
-                return BadRequest("Email or Username is required.");
-
-            var inputTrimmed = input.UsernameOrEmail.Trim();
-            User? user;
-            string returnEmail;
-
-            if (inputTrimmed.Contains("@"))
-            {
-                var emailNorm = inputTrimmed.ToUpperInvariant();
-                user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == emailNorm);
-                returnEmail = inputTrimmed;
-            }
-            else
-            {
-                var usernameNorm = inputTrimmed.ToUpperInvariant();
-                user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedUsername == usernameNorm);
-                returnEmail = user?.Email ?? string.Empty;
-            }
-
-            if (user == null || !user.IsActive) return Unauthorized("Invalid credentials.");
-            if (!_hasher.Verify(input.Password, user.PasswordHash, user.PasswordSalt))
-            {
-                user.AccessFailedCount++;
-                await _db.SaveChangesAsync();
-                return Unauthorized("Invalid credentials.");
-            }
-
-            // Generate OTP
-            var otp = new Random().Next(100000, 999999).ToString();
-            user.OtpCode = otp;
-            user.OtpExpiryUtc = DateTime.UtcNow.AddMinutes(5);
+            user.AccessFailedCount++;
             await _db.SaveChangesAsync();
-
-            if (string.IsNullOrWhiteSpace(user.Email))
-                return BadRequest("User does not have a valid email.");
-
-            await _email.SendOtpAsync(user.Email, otp);
-
-            return Ok(new LoginResponse(
-                id: user.Id.ToString(),
-                email: returnEmail,
-                message: "OTP sent to your email.",
-                requiresOtp: true,
-                otpVerified: false
-            ));
+            return Unauthorized("Invalid credentials.");
         }
+
+        // Generate OTP
+        var otp = new Random().Next(100000, 999999).ToString();
+        user.OtpCode = otp;
+        user.OtpExpiryUtc = DateTime.UtcNow.AddMinutes(5);
+        await _db.SaveChangesAsync();
+
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return BadRequest("User does not have a valid email.");
+
+        await _email.SendOtpAsync(user.Email, otp);
+
+        return Ok(new LoginResponse(
+            id: user.Id.ToString(),
+            email: user.Email,
+            message: "OTP sent to your email.",
+            requiresOtp: true,
+            otpVerified: false
+        ));
+}
+
 
         [HttpPost("verify-otp")]
         public async Task<ActionResult<LoginResponse>> VerifyOtp([FromBody] OtpVerifyRequest input)
         {
             var norm = input.UsernameOrEmail.Trim().ToUpperInvariant();
             var user = await _db.Users.FirstOrDefaultAsync(u =>
-                u.NormalizedUsername == norm || u.NormalizedEmail == norm);
+                 u.NormalizedEmail == norm);
 
             if (user == null || !user.IsActive) return Unauthorized("Invalid credentials.");
             if (user.OtpCode == null || user.OtpExpiryUtc < DateTime.UtcNow)
@@ -140,7 +134,7 @@ namespace HRMS.Backend.Controllers
 
             var norm = input.UsernameOrEmail.Trim().ToUpperInvariant();
             var user = await _db.Users.FirstOrDefaultAsync(u =>
-                u.NormalizedUsername == norm || u.NormalizedEmail == norm);
+                u.NormalizedEmail == norm);
 
             if (user == null || !user.IsActive)
                 return Unauthorized("User not found or inactive.");

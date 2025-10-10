@@ -505,11 +505,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("password_hash");
-
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -521,10 +516,6 @@ namespace HRMS.Backend.Migrations
                         .HasMaxLength(2083)
                         .HasColumnType("nvarchar(2083)")
                         .HasColumnName("photo_url");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("role_id");
 
                     b.Property<string>("ShiftDetails")
                         .HasColumnType("nvarchar(max)")
@@ -544,18 +535,10 @@ namespace HRMS.Backend.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("username");
-
                     b.HasKey("EmployeeID");
 
                     b.HasAlternateKey("EmployeeID", "TenantId")
                         .HasName("AK_employees_id_tenant");
-
-                    b.HasIndex("RoleId");
 
                     b.HasIndex("OrganizationId", "TenantId");
 
@@ -565,9 +548,6 @@ namespace HRMS.Backend.Migrations
                     b.HasIndex("TenantId", "EmployeeCode")
                         .IsUnique()
                         .HasFilter("[employee_code] IS NOT NULL");
-
-                    b.HasIndex("TenantId", "Username")
-                        .IsUnique();
 
                     b.HasIndex("DepartmentId", "OrganizationId", "TenantId");
 
@@ -1083,6 +1063,66 @@ namespace HRMS.Backend.Migrations
                     b.ToTable("performance_reviews", (string)null);
                 });
 
+            modelBuilder.Entity("HRMS.Backend.Models.PermanentTenantSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BackupFrequency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("CriticalAlertsOnly")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DataEncryptionAtRest")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DataRetentionYears")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefaultExportFormat")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EmailNotifications")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableAuditLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableSSO")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PasswordPolicy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PushNotifications")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequireTwoFactorAuth")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SSOProvider")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SessionTimeout")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PermanentTenantSettings");
+                });
+
             modelBuilder.Entity("HRMS.Backend.Models.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1290,22 +1330,6 @@ namespace HRMS.Backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("Id");
-
-                    b.Property<string>("AdminEmail")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AdminFirstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AdminLastName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AdminPhone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("AttendanceTracking")
                         .HasColumnType("bit");
@@ -1741,12 +1765,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("normalized_email");
 
-                    b.Property<string>("NormalizedUsername")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("normalized_username");
-
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
@@ -1804,12 +1822,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("username");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
@@ -1818,15 +1830,9 @@ namespace HRMS.Backend.Migrations
                         .IsUnique()
                         .HasFilter("[normalized_email] IS NOT NULL");
 
-                    b.HasIndex("NormalizedUsername")
-                        .IsUnique();
-
                     b.HasIndex("OrganizationId");
 
                     b.HasIndex("TenantId");
-
-                    b.HasIndex("Username")
-                        .IsUnique();
 
                     b.ToTable("users", (string)null);
                 });
@@ -2000,12 +2006,6 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Employee", b =>
                 {
-                    b.HasOne("HRMS.Backend.Models.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany("Employees")
                         .HasForeignKey("TenantId")
@@ -2028,8 +2028,6 @@ namespace HRMS.Backend.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Organization");
-
-                    b.Navigation("Role");
 
                     b.Navigation("Tenant");
                 });

@@ -81,6 +81,7 @@ namespace HRMS.Backend.Controllers
 
         // POST: api/departments
         [HttpPost]
+
         public async Task<ActionResult<DepartmentDto>> CreateDepartment(DepartmentCreateUpdateDto dto)
         {
             // Required fields

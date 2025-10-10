@@ -26,6 +26,8 @@ namespace HRMS.Backend.DTOs
     // Create
     public class CreateTenantSettingDto
     {
+        public Guid TenantId { get; set; }
+
         public bool EnableSSO { get; set; } = false;
         public string SSOProvider { get; set; } = string.Empty;
         public bool RequireTwoFactorAuth { get; set; } = false;

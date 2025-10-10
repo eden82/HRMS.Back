@@ -13,7 +13,7 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin")]
+    [RoleAuthorize("SuperAdmin,SystmeAdmin,HR")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -28,7 +28,6 @@ namespace HRMS.Backend.Controllers
         public sealed class CreateUserDto
         {
             public string FullName { get; set; } = string.Empty;
-            public string Username { get; set; } = string.Empty;
             public string? Email { get; set; }
             public string? PhoneNumber { get; set; }
             public string Password { get; set; } = string.Empty;
@@ -41,14 +40,11 @@ namespace HRMS.Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserDto input)
         {
-            if (string.IsNullOrWhiteSpace(input.Username)) return BadRequest("Username is required.");
+            
             if (string.IsNullOrWhiteSpace(input.Password)) return BadRequest("Password is required.");
 
-            var normalizedUsername = input.Username.Trim().ToUpperInvariant();
             var normalizedEmail = string.IsNullOrWhiteSpace(input.Email) ? null : input.Email!.Trim().ToUpperInvariant();
 
-            var usernameTaken = await _db.Users.AnyAsync(u => u.NormalizedUsername == normalizedUsername);
-            if (usernameTaken) return Conflict("Username already in use.");
 
             if (normalizedEmail != null)
             {
@@ -62,8 +58,6 @@ namespace HRMS.Backend.Controllers
             {
                 Id = Guid.NewGuid(),
                 FullName = input.FullName.Trim(),
-                Username = input.Username.Trim(),
-                NormalizedUsername = normalizedUsername,
                 Email = input.Email,
                 NormalizedEmail = normalizedEmail,
                 PhoneNumber = input.PhoneNumber,
@@ -98,7 +92,7 @@ namespace HRMS.Backend.Controllers
             await _db.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetById), new { id = user.Id },
-                new { user.Id, user.FullName, user.Username, user.Email, Role = input.Role });
+                new { user.Id, user.FullName, user.Email, Role = input.Role });
         }
 
 
@@ -117,7 +111,6 @@ namespace HRMS.Backend.Controllers
             {
                 user.Id,
                 user.FullName,
-                user.Username,
                 user.Email,
                 user.PhoneNumber,
                 Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
@@ -162,7 +155,6 @@ namespace HRMS.Backend.Controllers
                 {
                     user.Id,
                     user.FullName,
-                    user.Username,
                     user.Email,
                     user.PhoneNumber,
                     Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
@@ -174,6 +166,37 @@ namespace HRMS.Backend.Controllers
 
             return Ok(superAdmins);
         }
+
+        [HttpGet("search-employee-by-email")]
+    public async Task<IActionResult> SearchEmployeeByEmail([FromQuery] string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest("Email is required.");
+
+        // Normalize the email for case-insensitive search
+        var normalizedEmail = email.Trim().ToUpperInvariant();
+
+        var employee = await _db.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Email.ToUpper() == normalizedEmail);
+
+        if (employee == null)
+            return NotFound($"No employee found with email: {email}");
+
+        return Ok(new
+        {
+            employee.EmployeeID,
+            employee.FirstName,
+            employee.LastName,
+            employee.Email,
+            employee.PhoneNumber,
+            employee.JobTitle,
+            employee.DepartmentId,
+            employee.OrganizationId,
+            employee.TenantId
+        });
+    }
+
 
 
 

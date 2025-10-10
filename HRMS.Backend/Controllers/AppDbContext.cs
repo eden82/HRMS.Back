@@ -40,6 +40,8 @@ namespace HRMS.Backend.Data
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<FeedbackResponse> FeedbackResponses => Set<FeedbackResponse>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
+        public DbSet<PermanentTenantSetting> PermanentTenantSettings { get; set; }
+
 
 
 
@@ -205,18 +207,6 @@ namespace HRMS.Backend.Data
                 e.Property(x => x.TenantId)
                  .HasColumnName("tenant_id")
                  .IsRequired();
-                e.Property(x => x.RoleId)
-                 .HasColumnName("role_id")
-                 .IsRequired();
-
-                // Auth
-                e.Property(x => x.Username)
-                 .HasColumnName("username")
-                 .HasMaxLength(100)
-                 .IsRequired();
-                e.Property(x => x.PasswordHash)
-                 .HasColumnName("password_hash")
-                 .IsRequired();
 
                 // Required personal/contact fields
                 e.Property(x => x.FirstName)
@@ -342,11 +332,6 @@ namespace HRMS.Backend.Data
                  .HasPrincipalKey(d => new { d.Id, d.OrganizationId, d.TenantId })
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Role
-                e.HasOne(x => x.Role)
-                 .WithMany() // you already map EmployeeRole separately
-                 .HasForeignKey(x => x.RoleId)
-                 .OnDelete(DeleteBehavior.Restrict);
 
                 // Attendance (composite FK)
                 e.HasMany(x => x.Attendances)
@@ -359,8 +344,6 @@ namespace HRMS.Backend.Data
                 e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
                 e.HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique()
                  .HasFilter("[employee_code] IS NOT NULL");
-
-                e.HasIndex(x => new { x.TenantId, x.Username }).IsUnique(); // ← prevent duplicate usernames per tenant
 
                 e.HasIndex(x => new { x.OrganizationId, x.TenantId });
                 e.HasIndex(x => new { x.DepartmentId, x.OrganizationId, x.TenantId });
@@ -596,10 +579,7 @@ namespace HRMS.Backend.Data
                 e.ToTable("users");
                 e.HasKey(u => u.Id);
 
-                // Unique for normalized username (required)
-                e.HasIndex(u => u.NormalizedUsername).IsUnique();
 
-                // Unique email only when supplied (filtered unique index)
                 e.HasIndex(u => u.NormalizedEmail)
                     .IsUnique()
                     .HasFilter("[normalized_email] IS NOT NULL");

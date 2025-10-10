@@ -1,21 +1,9 @@
-using System.Text.Json.Serialization;
-//using Newtonsoft.Json;
+using System;
 
-
-namespace HRMS.Backend.Models
+namespace HRMS.Backend.DTOs
 {
-    public class TenantSetting
+    public class PermanentTenantSettingDto
     {
-        public Guid Id { get; set; }
-        public Guid TenantId { get; set; }
-
-        //// jsonb -> nvarchar(max). Make it non-null by default.
-        //public string Settings { get; set; } = "{}";
-
-        public int Version { get; set; } = 1;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
-
         public bool EnableSSO { get; set; } = false;
         public string SSOProvider { get; set; } = string.Empty;
         public bool RequireTwoFactorAuth { get; set; } = false;
@@ -32,8 +20,6 @@ namespace HRMS.Backend.Models
         public int DataRetentionYears { get; set; } = 5;
         public bool DataEncryptionAtRest { get; set; } = true;
 
-
-        [JsonIgnore]
-        public Tenant Tenant { get; set; } = null!;
+        public DateTime? UpdatedAt { get; set; }
     }
 }

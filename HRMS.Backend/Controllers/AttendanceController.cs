@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -24,6 +25,7 @@ namespace HRMS.Backend.Controllers
 
         // GET: api/attendance
         [HttpGet]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<IEnumerable<AttendanceDto>>> GetAll()
         {
             var list = await _context.Attendances
@@ -53,6 +55,7 @@ namespace HRMS.Backend.Controllers
 
         // GET: api/attendance/{id}
         [HttpGet("{id:guid}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<ActionResult<AttendanceDto>> GetById(Guid id)
         {
             var a = await _context.Attendances.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
@@ -80,6 +83,7 @@ namespace HRMS.Backend.Controllers
 
         // POST: api/attendance
         [HttpPost]
+        [RoleAuthorize("Employee")]
         public async Task<ActionResult<AttendanceDto>> Create([FromBody] AttendanceCreateUpdateDto input)
         {
             if (input == null) return BadRequest("Body required.");
@@ -90,12 +94,16 @@ namespace HRMS.Backend.Controllers
                          .FirstOrDefaultAsync(e => e.EmployeeID == input.EmployeeId);
             if (emp == null) return BadRequest("Employee not found.");
 
-            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            // 🔒 Fix: ensure we pass Guid (not Guid?) into GetSettingsAsync
+            if (!emp.OrganizationId.HasValue)
+                return BadRequest("Employee has no OrganizationId.");
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId.Value);
             if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
             var tz = GetTimeZone(settings.TimeZone);
             var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
             var attDate = input.AttendanceDate?.Date ?? nowLocal.Date;
+
 
             var entity = new Attendance
             {
@@ -140,6 +148,7 @@ namespace HRMS.Backend.Controllers
 
         // PUT: api/attendance/{id}
         [HttpPut("{id:guid}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> Update(Guid id, [FromBody] AttendanceCreateUpdateDto input)
         {
             var a = await _context.Attendances.FirstOrDefaultAsync(x => x.Id == id);
@@ -149,7 +158,10 @@ namespace HRMS.Backend.Controllers
                          .FirstOrDefaultAsync(e => e.EmployeeID == a.EmployeeId);
             if (emp == null) return BadRequest("Employee not found.");
 
-            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            // 🔒 Fix: ensure Guid (not Guid?)
+            if (!emp.OrganizationId.HasValue)
+                return BadRequest("Employee has no OrganizationId.");
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId.Value);
             if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
             if (input.AttendanceDate.HasValue) a.AttendanceDate = input.AttendanceDate.Value.Date;
@@ -169,6 +181,7 @@ namespace HRMS.Backend.Controllers
 
         // DELETE: api/attendance/{id}
         [HttpDelete("{id:guid}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var a = await _context.Attendances.FindAsync(id);
@@ -181,6 +194,7 @@ namespace HRMS.Backend.Controllers
 
         // POST: api/attendance/clockin
         [HttpPost("clockin")]
+
         public async Task<ActionResult<AttendanceDto>> ClockIn([FromBody] ClockInDto input)
         {
             if (input == null) return BadRequest("Body required.");
@@ -190,7 +204,12 @@ namespace HRMS.Backend.Controllers
                          .FirstOrDefaultAsync(e => e.EmployeeID == input.EmployeeId);
             if (emp == null) return BadRequest("Employee not found.");
 
-            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+
+
+            // 🔒 Fix: ensure Guid (not Guid?)
+            if (!emp.OrganizationId.HasValue)
+                return BadRequest("Employee has no OrganizationId.");
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId.Value);
             if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
             var tz = GetTimeZone(settings.TimeZone);
@@ -255,7 +274,10 @@ namespace HRMS.Backend.Controllers
                          .FirstOrDefaultAsync(e => e.EmployeeID == a.EmployeeId);
             if (emp == null) return BadRequest("Employee not found.");
 
-            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId);
+            // 🔒 Fix: ensure Guid (not Guid?)
+            if (!emp.OrganizationId.HasValue)
+                return BadRequest("Employee has no OrganizationId.");
+            var settings = await GetSettingsAsync(emp.TenantId, emp.OrganizationId.Value);
             if (settings == null) return BadRequest("Org settings not found for employee’s org.");
 
             var tz = GetTimeZone(settings.TimeZone);
@@ -265,6 +287,8 @@ namespace HRMS.Backend.Controllers
             a.Status = ComputeStatus(a, settings, hasApprovedLeave: false);
 
             await _context.SaveChangesAsync();
+
+
 
             return Ok(new AttendanceDto
             {
@@ -369,6 +393,9 @@ namespace HRMS.Backend.Controllers
         public string? IpAddress { get; set; }
         public string? ExceptionNote { get; set; }
     }
+
+
+
 
     public sealed class ClockInDto
     {

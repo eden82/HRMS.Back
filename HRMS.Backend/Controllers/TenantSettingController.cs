@@ -19,6 +19,46 @@ namespace HRMS.Backend.Controllers
             _db = db;
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> CreateTenantSetting([FromBody] CreateTenantSettingDto input)
+        {
+            if (input == null) return BadRequest("Request body is required.");
+
+            // Check if setting for this tenant already exists
+            var existing = await _db.TenantSettings.FirstOrDefaultAsync(s => s.TenantId == input.TenantId);
+            if (existing != null)
+                return Conflict("Tenant setting for this tenant already exists.");
+
+            var setting = new TenantSetting
+            {
+                TenantId = input.TenantId,
+                EnableSSO = input.EnableSSO,
+                SSOProvider = input.SSOProvider,
+                RequireTwoFactorAuth = input.RequireTwoFactorAuth,
+                PasswordPolicy = input.PasswordPolicy,
+                SessionTimeout = input.SessionTimeout,
+                EnableAuditLogging = input.EnableAuditLogging,
+
+                EmailNotifications = input.EmailNotifications,
+                PushNotifications = input.PushNotifications,
+                CriticalAlertsOnly = input.CriticalAlertsOnly,
+
+                DefaultExportFormat = input.DefaultExportFormat,
+                BackupFrequency = input.BackupFrequency,
+                DataRetentionYears = input.DataRetentionYears,
+                DataEncryptionAtRest = input.DataEncryptionAtRest,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _db.TenantSettings.Add(setting);
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(UpdateTenantSetting), new { tenantId = setting.TenantId }, setting);
+        }
+
+
         [HttpPut("{tenantId:guid}")]
         public async Task<IActionResult> UpdateTenantSetting(Guid tenantId, [FromBody] CreateTenantSettingDto input)
         {

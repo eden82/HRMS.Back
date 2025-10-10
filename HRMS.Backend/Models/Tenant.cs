@@ -32,12 +32,6 @@ namespace HRMS.Backend.Models
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        // Extras (unchanged)
-        public string AdminFirstName { get; set; } = string.Empty;
-        public string AdminLastName { get; set; } = string.Empty;
-        public string AdminEmail { get; set; } = string.Empty;
-        public string AdminPhone { get; set; } = string.Empty;
-
         public string Country { get; set; } = string.Empty;
         public string TimeZone { get; set; } = string.Empty;
 
