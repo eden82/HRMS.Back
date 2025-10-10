@@ -92,8 +92,12 @@ namespace HRMS.Backend.Controllers
         public async Task<ActionResult<LoginResponse>> VerifyOtp([FromBody] OtpVerifyRequest input)
         {
             var norm = input.UsernameOrEmail.Trim().ToUpperInvariant();
-            var user = await _db.Users.FirstOrDefaultAsync(u =>
-                 u.NormalizedEmail == norm);
+            var user = await _db.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.NormalizedEmail == norm);
+
+
 
             if (user == null || !user.IsActive) return Unauthorized("Invalid credentials.");
             if (user.OtpCode == null || user.OtpExpiryUtc < DateTime.UtcNow)
@@ -111,6 +115,7 @@ namespace HRMS.Backend.Controllers
 
             // Get roles from UserRoles
             var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
+
 
             return Ok(new LoginResponse(
                 id: user.Id.ToString(),

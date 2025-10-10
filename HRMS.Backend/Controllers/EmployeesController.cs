@@ -31,9 +31,17 @@ namespace HRMS.Backend.Controllers
             var tenantExists = await _context.Tenants.AnyAsync(t => t.Id == dto.TenantId);
             if (!tenantExists) return BadRequest($"Tenant {dto.TenantId} not found.");
 
-            var org = await _context.Organizations.AsNoTracking()
-                                 .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
-            if (org is null) return BadRequest("Organization not found in the specified tenant.");
+            Organization? org = null;
+
+            if (dto.OrganizationId != null)
+            {
+                org = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+
+                if (org is null)
+                    return BadRequest("Organization not found in the specified tenant.");
+            }
+
 
             if (dto.DepartmentId.HasValue)
             {
