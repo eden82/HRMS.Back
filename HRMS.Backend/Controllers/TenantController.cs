@@ -109,6 +109,7 @@ namespace HRMS.Backend.Controllers
             t.Location = body.Location;
             t.Country = body.Country;
             t.TimeZone = body.TimeZone;
+            t.Description = body.Description;
             t.EmployeeManagement = body.EmployeeManagement;
             t.AttendanceTracking = body.AttendanceTracking;
             t.LeaveManagement = body.LeaveManagement;

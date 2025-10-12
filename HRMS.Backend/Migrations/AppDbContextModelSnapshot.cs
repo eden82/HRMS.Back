@@ -391,6 +391,10 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("address");
 
+                    b.Property<string>("BankAccountNumber")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("bankAccountNumber");
+
                     b.Property<string>("BankDetails")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -400,11 +404,23 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("benefits_enrollment");
 
+                    b.Property<string>("Certification")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("certification ");
+
+                    b.Property<string>("ContractFile")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("contractFile");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("currency");
 
                     b.Property<string>("CustomFields")
                         .IsRequired()
@@ -505,6 +521,14 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
 
+                    b.Property<string>("PassportNumber")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("passportNumber");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("paymentMethod");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -517,9 +541,21 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(2083)")
                         .HasColumnName("photo_url");
 
+                    b.Property<string>("Resume")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("resume");
+
+                    b.Property<string>("Salary")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("salary");
+
                     b.Property<string>("ShiftDetails")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("shift_details");
+
+                    b.Property<string>("TaxIdenitificationNumber")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("taxIdenitificationNumber");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier")
@@ -534,6 +570,10 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("WorkLocation")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("workLocation");
 
                     b.HasKey("EmployeeID");
 
@@ -1343,6 +1383,11 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)")
+                        .HasColumnName("description");
 
                     b.Property<string>("Domain")
                         .IsRequired()

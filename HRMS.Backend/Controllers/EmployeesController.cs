@@ -102,6 +102,16 @@ namespace HRMS.Backend.Controllers
                 BenefitsEnrollment = dto.BenefitsEnrollment,
                 ShiftDetails = dto.ShiftDetails,
                 LeaveCredit = dto.LeaveCredit,
+                Salary = dto.Salary,
+                Currency = dto.Currency,
+                PaymentMethod = dto.PaymentMethod,
+                BankAccountNumber = dto.BankAccountNumber,
+                TaxIdenitificationNumber = dto.TaxIdenitificationNumber,
+                PassportNumber = dto.PassportNumber,
+                Resume = dto.Resume,
+                ContractFile = dto.ContractFile,
+                WorkLocation = dto.WorkLocation,
+                Certification = dto.Certification,
 
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -228,12 +238,22 @@ namespace HRMS.Backend.Controllers
             e.CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields;
             e.BenefitsEnrollment = dto.BenefitsEnrollment;
             e.ShiftDetails = dto.ShiftDetails;
+            e.Salary = dto.Salary;
+            e.Currency = dto.Currency;
+            e.PaymentMethod = dto.PaymentMethod;
+            e.BankAccountNumber = dto.BankAccountNumber;
+            e.TaxIdenitificationNumber = dto.TaxIdenitificationNumber;
+            e.PassportNumber = dto.PassportNumber;
+            e.Resume = dto.Resume;
+            e.ContractFile = dto.ContractFile;
+            e.WorkLocation = dto.WorkLocation;
+            e.Certification = dto.Certification;
 
             e.UpdatedAt = DateTime.UtcNow;
-
             await _context.SaveChangesAsync();
             return NoContent();
         }
+
         // GET by department
         [HttpGet("by-department/{tenantId}/{departmentId}")]
         public async Task<ActionResult<object>> GetByDepartment(Guid tenantId, Guid departmentId)

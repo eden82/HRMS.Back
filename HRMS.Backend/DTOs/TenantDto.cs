@@ -11,6 +11,7 @@ namespace HRMS.Backend.DTOs
         public string? Domain { get; set; }
         public string? Industry { get; set; }
         public string? Location { get; set; }
+        public string? Description { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -39,6 +40,7 @@ namespace HRMS.Backend.DTOs
 
         public string Country { get; set; } = string.Empty;
         public string TimeZone { get; set; } = string.Empty;
+        public string? Description { get; set; }
 
         public bool EmployeeManagement { get; set; }
         public bool AttendanceTracking { get; set; }

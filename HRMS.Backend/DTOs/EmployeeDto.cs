@@ -41,6 +41,17 @@ namespace HRMS.Backend.DTOs
         public string? BenefitsEnrollment { get; set; }
         public string? ShiftDetails { get; set; }
         public decimal LeaveCredit { get; set; } = 20;
+        public decimal? Salary { get; set; }
+        public string? Currency { get; set; }
+        public string? PaymentMethod { get; set; }
+        public string? BankAccountNumber { get; set; }
+        public string? TaxIdenitificationNumber { get; set; }
+        public string? PassportNumber { get; set; }
+        public string? Resume { get; set; }
+        public string? ContractFile { get; set; }
+        public string? WorkLocation { get; set; }
+        public string? Certification { get; set; }
+
     }
     public sealed class EmployeeUpdateDto
     {
@@ -75,7 +86,17 @@ namespace HRMS.Backend.DTOs
         [Required] public string CustomFields { get; set; } = "{}";
         public string? BenefitsEnrollment { get; set; }
         public string? ShiftDetails { get; set; }
-        
+        public decimal? Salary { get; set; }
+        public string? Currency { get; set; }
+        public string? PaymentMethod { get; set; }
+        public string? BankAccountNumber { get; set; }
+        public string? TaxIdenitificationNumber { get; set; }
+        public string? PassportNumber { get; set; }
+        public string? Resume { get; set; }
+        public string? ContractFile { get; set; }
+        public string? WorkLocation { get; set; }
+        public string? Certification { get; set; }
+
     }
 
     public class EmployeeListDto
@@ -89,6 +110,7 @@ namespace HRMS.Backend.DTOs
         public string? Email { get; set; }
         public string? EmployeeCode { get; set; }
         public string? JobTitle { get; set; }
+
     }
 
     public class EmployeeDetailDto

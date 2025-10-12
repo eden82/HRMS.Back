@@ -26,6 +26,9 @@ namespace HRMS.Backend.Models
         [Column("location"), MaxLength(200)]
         public string? Location { get; set; }
 
+        [Column("description"), MaxLength(400)]
+        public string? Description { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

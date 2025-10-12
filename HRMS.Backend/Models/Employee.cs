@@ -111,6 +111,37 @@ namespace HRMS.Backend.Models
         [Column("shift_details")]
         public string? ShiftDetails { get; set; }       // ← now nullable
 
+        [Column("salary")]
+        public decimal? Salary { get; set; }
+
+
+        [Column("currency")]
+        public string? Currency { get; set; }
+
+        [Column("paymentMethod")]
+        public string? PaymentMethod { get; set; }
+
+        [Column("bankAccountNumber")]
+        public string? BankAccountNumber { get; set; }
+
+        [Column("taxIdenitificationNumber")]
+        public string? TaxIdenitificationNumber { get; set; }
+
+        [Column("passportNumber")]
+        public string? PassportNumber { get; set; }
+
+        [Column("resume")]
+        public string? Resume { get; set; }
+
+        [Column("contractFile")]
+        public string? ContractFile { get; set; }
+
+        [Column("workLocation")]
+        public string? WorkLocation { get; set; }
+
+        [Column("certification ")]
+        public string? Certification { get; set; }
+
         // Timestamps
         [Required]
         [Column("created_at")]
