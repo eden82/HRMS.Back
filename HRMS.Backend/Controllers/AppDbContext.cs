@@ -50,6 +50,14 @@ namespace HRMS.Backend.Data
             base.OnModelCreating(model);
 
 
+            model.Entity<Employee>()
+                .Property(e => e.Salary)
+                .HasPrecision(18, 4);
+
+            model.Entity<Employee>()
+                .Property(e => e.LeaveCredit)
+                .HasPrecision(10, 2);
+
             // RequestFeedback → Employee (keep cascade)
             model.Entity<RequestFeedback>()
                 .HasOne(r => r.Employee)

@@ -115,6 +115,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
+
+app.UseMiddleware<HRMS.Backend.Middleware.OrganizationMiddleware>();
+
 app.MapControllers();
 
 

@@ -9,6 +9,9 @@ using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Filters;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+
 
 namespace HRMS.Backend.Controllers
 {
@@ -19,11 +22,18 @@ namespace HRMS.Backend.Controllers
     public class EmployeesController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public EmployeesController(AppDbContext context) => _context = context;
+        private readonly IWebHostEnvironment _env;
+
+
+        public EmployeesController(AppDbContext context, IWebHostEnvironment env)
+        {
+            _context = context;
+            _env = env;
+        }
 
         // POST: api/employees
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] EmployeeCreateDto dto)
+        public async Task<IActionResult> Create([FromForm] EmployeeCreateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
@@ -68,53 +78,145 @@ namespace HRMS.Backend.Controllers
                 if (codeClash) return Conflict(new { message = "Employee code already exists in tenant." });
             }
 
+
+
+            string? photoUrl = null;
+            string? resumeUrl = null;
+            string? contractUrl = null;
+
+            // Photo
+            if (dto.Photo != null)
+            {
+
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolderPhoto = Path.Combine(rootPath, "uploads", "employees");
+
+
+                if (!Directory.Exists(uploadsFolderPhoto)) Directory.CreateDirectory(uploadsFolderPhoto);
+
+                var fileNamePhoto = Guid.NewGuid().ToString() + Path.GetExtension(dto.Photo.FileName);
+                var filePathPhoto = Path.Combine(uploadsFolderPhoto, fileNamePhoto);
+
+                using (var stream = new FileStream(filePathPhoto, FileMode.Create))
+                    await dto.Photo.CopyToAsync(stream);
+
+                photoUrl = $"/uploads/employees/{fileNamePhoto}";
+            }
+
+            // Resume
+            if (dto.ResumeFile != null)
+            {
+
+
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolderResume = Path.Combine(rootPath, "uploads", "employees");
+
+                if (!Directory.Exists(uploadsFolderResume)) Directory.CreateDirectory(uploadsFolderResume);
+
+                var fileNameResume = Guid.NewGuid().ToString() + Path.GetExtension(dto.ResumeFile.FileName);
+                var filePathResume = Path.Combine(uploadsFolderResume, fileNameResume);
+
+                using (var stream = new FileStream(filePathResume, FileMode.Create))
+                    await dto.ResumeFile.CopyToAsync(stream);
+
+                resumeUrl = $"/uploads/employees/resumes/{fileNameResume}";
+            }
+
+            // Contract
+            if (dto.ContractFile != null)
+            {
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolderContract = Path.Combine(rootPath, "uploads", "employees");
+
+
+                if (!Directory.Exists(uploadsFolderContract)) Directory.CreateDirectory(uploadsFolderContract);
+
+                var fileNameContract = Guid.NewGuid().ToString() + Path.GetExtension(dto.ContractFile.FileName);
+                var filePathContract = Path.Combine(uploadsFolderContract, fileNameContract);
+
+                using (var stream = new FileStream(filePathContract, FileMode.Create))
+                    await dto.ContractFile.CopyToAsync(stream);
+
+                contractUrl = $"/uploads/employees/contracts/{fileNameContract}";
+            }
+
+
+
+            // Certification
+
+            string? certificationUrl = null;
+
+            if (dto.CertificationFile != null)
+            {
+
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolderCertification = Path.Combine(rootPath, "uploads", "employees", "certifications");
+
+                if (!Directory.Exists(uploadsFolderCertification)) Directory.CreateDirectory(uploadsFolderCertification);
+
+                var fileNameCertification = Guid.NewGuid().ToString() + Path.GetExtension(dto.CertificationFile.FileName);
+                var filePathCertification = Path.Combine(uploadsFolderCertification, fileNameCertification);
+
+                using (var stream = new FileStream(filePathCertification, FileMode.Create))
+                    await dto.CertificationFile.CopyToAsync(stream);
+
+                certificationUrl = $"/uploads/employees/certifications/{fileNameCertification}";
+            }
+
+
+
+            // Create entity
             var entity = new Employee
             {
-                EmployeeID = Guid.NewGuid(),
-                TenantId = dto.TenantId,
-                OrganizationId = dto.OrganizationId,
-                DepartmentId = dto.DepartmentId,      // nullable OK
+                    EmployeeID = Guid.NewGuid(),
+                    TenantId = dto.TenantId,
+                    OrganizationId = dto.OrganizationId,
+                    DepartmentId = dto.DepartmentId,      // nullable OK
 
-                FirstName = dto.FirstName.Trim(),
-                LastName = dto.LastName.Trim(),
-                DateOfBirth = dto.DateOfBirth,
-                Gender = dto.Gender.Trim(),
-                Nationality = dto.Nationality.Trim(),
-                MaritalStatus = dto.MaritalStatus.Trim(),
+                    FirstName = dto.FirstName.Trim(),
+                    LastName = dto.LastName.Trim(),
+                    DateOfBirth = dto.DateOfBirth,
+                    Gender = dto.Gender.Trim(),
+                    Nationality = dto.Nationality.Trim(),
+                    MaritalStatus = dto.MaritalStatus.Trim(),
 
-                Email = dto.Email.Trim(),
-                PhoneNumber = dto.PhoneNumber.Trim(),
-                Address = dto.Address.Trim(),
-                EmergencyContactName = dto.EmergencyContactName.Trim(),
-                EmergencyContactNumber = dto.EmergencyContactNumber.Trim(),
+                    Email = dto.Email.Trim(),
+                    PhoneNumber = dto.PhoneNumber.Trim(),
+                    Address = dto.Address.Trim(),
+                    EmergencyContactName = dto.EmergencyContactName.Trim(),
+                    EmergencyContactNumber = dto.EmergencyContactNumber.Trim(),
 
-                JobTitle = dto.JobTitle.Trim(),
-                EmploymentType = dto.EmploymentType.Trim(),
-                EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim(),
-                PhotoUrl = dto.PhotoUrl.Trim(),
+                    JobTitle = dto.JobTitle.Trim(),
+                    EmploymentType = dto.EmploymentType.Trim(),
+                    EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim(),
+
+
+                    PhotoUrl = photoUrl ?? string.Empty,
+                    Resume = resumeUrl ?? string.Empty,
+                    ContractFile = contractUrl ?? string.Empty,
+                    Certification = certificationUrl ?? string.Empty,
+
+
                 // If JoiningDate is null, use current UTC date as default
                 HireDate = dto.HireDate == default ? DateTime.UtcNow : dto.HireDate,
 
-                EmployeeCode = employeeCode,
+                    EmployeeCode = employeeCode,
 
-                BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails,
-                CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
-                BenefitsEnrollment = dto.BenefitsEnrollment,
-                ShiftDetails = dto.ShiftDetails,
-                LeaveCredit = dto.LeaveCredit,
-                Salary = dto.Salary,
-                Currency = dto.Currency,
-                PaymentMethod = dto.PaymentMethod,
-                BankAccountNumber = dto.BankAccountNumber,
-                TaxIdenitificationNumber = dto.TaxIdenitificationNumber,
-                PassportNumber = dto.PassportNumber,
-                Resume = dto.Resume,
-                ContractFile = dto.ContractFile,
-                WorkLocation = dto.WorkLocation,
-                Certification = dto.Certification,
+                    BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails,
+                    CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
+                    BenefitsEnrollment = dto.BenefitsEnrollment,
+                    ShiftDetails = dto.ShiftDetails,
+                    LeaveCredit = dto.LeaveCredit,
+                    Salary = dto.Salary,
+                    Currency = dto.Currency,
+                    PaymentMethod = dto.PaymentMethod,
+                    BankAccountNumber = dto.BankAccountNumber,
+                    TaxIdenitificationNumber = dto.TaxIdenitificationNumber,
+                    PassportNumber = dto.PassportNumber,
+                    WorkLocation = dto.WorkLocation,
 
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
             };
 
             _context.Employees.Add(entity);
