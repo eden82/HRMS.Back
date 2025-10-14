@@ -286,12 +286,6 @@ namespace HRMS.Backend.Data
                  .HasMaxLength(50); // controller will ensure non-empty (auto-generate) and uniqueness
 
                 // Payroll / misc
-                e.Property(x => x.BankDetails)
-                 .HasColumnName("bank_details")
-                 .IsRequired();
-                e.Property(x => x.CustomFields)
-                 .HasColumnName("custom_fields")
-                 .IsRequired();
                 e.Property(x => x.BenefitsEnrollment)
                  .HasColumnName("benefits_enrollment")
                  .IsRequired(false); // ← optional

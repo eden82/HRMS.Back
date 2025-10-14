@@ -39,7 +39,16 @@ namespace HRMS.Backend.Models
         [Required(ErrorMessage = "Requirement is required")]
         public string Requirement { get; set; } = string.Empty;
 
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("updated_at")]
+        public DateTime? UpdatedAt { get; set; }
+
+        [Column("closing_date")]
         public DateTime? ClosingDate { get; set; }
+
+
 
         //public ICollection<Shortlist>? Shortlists { get; set; } = new List<Shortlist>();
         public ICollection<Applicant>? Applicants { get; set; } = new List<Applicant>();

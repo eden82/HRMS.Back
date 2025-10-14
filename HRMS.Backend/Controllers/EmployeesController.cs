@@ -89,7 +89,7 @@ namespace HRMS.Backend.Controllers
             {
 
                 var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsFolderPhoto = Path.Combine(rootPath, "uploads", "employees");
+                var uploadsFolderPhoto = Path.Combine(rootPath, "uploads", "employees" , "Photo");
 
 
                 if (!Directory.Exists(uploadsFolderPhoto)) Directory.CreateDirectory(uploadsFolderPhoto);
@@ -109,7 +109,7 @@ namespace HRMS.Backend.Controllers
 
 
                 var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsFolderResume = Path.Combine(rootPath, "uploads", "employees");
+                var uploadsFolderResume = Path.Combine(rootPath, "uploads", "employees" , "ResumeFile");
 
                 if (!Directory.Exists(uploadsFolderResume)) Directory.CreateDirectory(uploadsFolderResume);
 
@@ -126,7 +126,7 @@ namespace HRMS.Backend.Controllers
             if (dto.ContractFile != null)
             {
                 var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsFolderContract = Path.Combine(rootPath, "uploads", "employees");
+                var uploadsFolderContract = Path.Combine(rootPath, "uploads", "employees" , "ContractFile");
 
 
                 if (!Directory.Exists(uploadsFolderContract)) Directory.CreateDirectory(uploadsFolderContract);
@@ -202,8 +202,7 @@ namespace HRMS.Backend.Controllers
 
                     EmployeeCode = employeeCode,
 
-                    BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails,
-                    CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields,
+         
                     BenefitsEnrollment = dto.BenefitsEnrollment,
                     ShiftDetails = dto.ShiftDetails,
                     LeaveCredit = dto.LeaveCredit,
@@ -336,8 +335,6 @@ namespace HRMS.Backend.Controllers
             e.PhotoUrl = dto.PhotoUrl.Trim();
             e.HireDate = dto.HireDate;
 
-            e.BankDetails = string.IsNullOrWhiteSpace(dto.BankDetails) ? "{}" : dto.BankDetails;
-            e.CustomFields = string.IsNullOrWhiteSpace(dto.CustomFields) ? "{}" : dto.CustomFields;
             e.BenefitsEnrollment = dto.BenefitsEnrollment;
             e.ShiftDetails = dto.ShiftDetails;
             e.Salary = dto.Salary;

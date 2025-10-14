@@ -1,5 +1,7 @@
 using System;
-using System.ComponentModel.DataAnnotations;   
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 
 namespace HRMS.Backend.DTOs
 {
@@ -35,5 +37,11 @@ namespace HRMS.Backend.DTOs
         public string Requirement { get; set; } = string.Empty;
 
         public DateTime? ClosingDate { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("updated_at")]
+        public DateTime? UpdatedAt { get; set; }
     }
 }

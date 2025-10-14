@@ -38,6 +38,7 @@ namespace HRMS.Backend.Controllers
                 ApplicationDeadline = dto.ApplicationDeadline,
                 JobDescription = dto.JobDescription,
                 Requirement = dto.Requirement,
+                CreatedAt = DateTime.UtcNow,
                 ClosingDate = dto.ClosingDate
             };
 
@@ -113,7 +114,7 @@ namespace HRMS.Backend.Controllers
             job.ClosingDate = dto.ClosingDate;
 
 
-
+            job.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             //  Get updated active jobs count after posting

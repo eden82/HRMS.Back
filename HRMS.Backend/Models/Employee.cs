@@ -97,13 +97,6 @@ namespace HRMS.Backend.Models
         public string? EmployeeCode { get; set; } // required via controller rule but will be auto-generated if missing
 
         // Payroll / misc
-        [Required]
-        [Column("bank_details")]
-        public string BankDetails { get; set; } = "{}";
-
-        [Required]
-        [Column("custom_fields")]
-        public string CustomFields { get; set; } = "{}";
 
         [Column("benefits_enrollment")]
         public string? BenefitsEnrollment { get; set; } // ← now nullable

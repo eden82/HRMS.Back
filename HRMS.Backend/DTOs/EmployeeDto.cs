@@ -36,8 +36,6 @@ namespace HRMS.Backend.DTOs
         [MaxLength(50)] public string? EmployeeCode { get; set; }
 
         // Financial / misc (nullable per your latest asks)
-        [Required] public string BankDetails { get; set; } = "{}";
-        [Required] public string CustomFields { get; set; } = "{}";
         public string? BenefitsEnrollment { get; set; }
         public string? ShiftDetails { get; set; }
         public decimal LeaveCredit { get; set; } = 20;
@@ -86,9 +84,6 @@ namespace HRMS.Backend.DTOs
         [Required] public DateTime HireDate { get; set; }
 
         [MaxLength(50)] public string? EmployeeCode { get; set; }
-
-        [Required] public string BankDetails { get; set; } = "{}";
-        [Required] public string CustomFields { get; set; } = "{}";
         public string? BenefitsEnrollment { get; set; }
         public string? ShiftDetails { get; set; }
         public decimal? Salary { get; set; }
