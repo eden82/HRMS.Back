@@ -308,9 +308,7 @@ namespace HRMS.Backend.Data
                  .HasColumnName("terminated_date")
                  .HasColumnType("datetime2(3)");
 
-                // JSON validity check (kept)
-                e.ToTable(t => t.HasCheckConstraint("CHK_emp_custom_fields_json",
-                    "custom_fields IS NULL OR ISJSON(custom_fields) = 1"));
+
 
                 // Relationships
 
@@ -823,6 +821,7 @@ namespace HRMS.Backend.Data
                  .WithMany(p => p.Feedback)
                  .HasForeignKey(x => x.ProgramId)
                  .OnDelete(DeleteBehavior.Cascade);
+
 
                 e.HasOne(x => x.Employee)
                  .WithMany()
