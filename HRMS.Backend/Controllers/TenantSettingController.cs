@@ -35,8 +35,6 @@ namespace HRMS.Backend.Controllers
                 TenantId = input.TenantId,
                 EnableSSO = input.EnableSSO,
                 SSOProvider = input.SSOProvider,
-                RequireTwoFactorAuth = input.RequireTwoFactorAuth,
-                PasswordPolicy = input.PasswordPolicy,
                 SessionTimeout = input.SessionTimeout,
                 EnableAuditLogging = input.EnableAuditLogging,
 
@@ -68,8 +66,6 @@ namespace HRMS.Backend.Controllers
             // Update values
             setting.EnableSSO = input.EnableSSO;
             setting.SSOProvider = input.SSOProvider;
-            setting.RequireTwoFactorAuth = input.RequireTwoFactorAuth;
-            setting.PasswordPolicy = input.PasswordPolicy;
             setting.SessionTimeout = input.SessionTimeout;
             setting.EnableAuditLogging = input.EnableAuditLogging;
 

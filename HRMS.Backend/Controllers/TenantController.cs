@@ -49,8 +49,6 @@ namespace HRMS.Backend.Controllers
                     TenantId = tenant.Id,
                     EnableSSO = permanentSetting.EnableSSO,
                     SSOProvider = permanentSetting.SSOProvider,
-                    RequireTwoFactorAuth = permanentSetting.RequireTwoFactorAuth,
-                    PasswordPolicy = permanentSetting.PasswordPolicy,
                     SessionTimeout = permanentSetting.SessionTimeout,
                     EnableAuditLogging = permanentSetting.EnableAuditLogging,
 

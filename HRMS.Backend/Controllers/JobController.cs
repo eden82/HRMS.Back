@@ -195,6 +195,61 @@ namespace HRMS.Backend.Controllers
 
 
 
+        // GET: api/job/search
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchJobs(
+            [FromQuery] string? jobTitle,
+            [FromQuery] string? companyName,
+            [FromQuery] string? jobType,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate)
+        {
+            // Start with all jobs
+            var query = _context.Jobs.AsQueryable();
+
+            // Filter by JobTitle if provided
+            if (!string.IsNullOrWhiteSpace(jobTitle))
+                query = query.Where(j => j.JobTitle.Contains(jobTitle));
+
+            // Filter by JobType if provided
+            if (!string.IsNullOrWhiteSpace(jobType))
+                query = query.Where(j => j.JobType.Contains(jobType));
+
+            // Filter by Company/Organization Name if provided
+            if (!string.IsNullOrWhiteSpace(companyName))
+            {
+                query = query.Include(j => j.Tenant) // assuming Job has Tenant navigation property
+                             .Where(j => j.Tenant.Name.Contains(companyName));
+            }
+
+            // Filter by CreatedAt/Job posted date
+            if (startDate.HasValue)
+                query = query.Where(j => j.CreatedAt >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(j => j.CreatedAt <= endDate.Value);
+
+            // Execute query
+            var jobs = await query
+                .Select(j => new
+                {
+                    j.JobTitle,
+                    Company = j.Tenant != null ? j.Tenant.Name : null, // include company name
+                    j.Location,
+                    j.JobType,
+                    j.CreatedAt,
+                    j.ApplicationDeadline
+                })
+                .ToListAsync();
+
+            if (jobs.Count == 0)
+                return NotFound(new { message = "No jobs match the search criteria." });
+
+            return Ok(jobs);
+        }
+
+
+
 
     }
 }

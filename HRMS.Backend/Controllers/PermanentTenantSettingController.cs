@@ -36,8 +36,6 @@ namespace HRMS.Backend.Controllers
                 {
                     EnableSSO = input.EnableSSO,
                     SSOProvider = input.SSOProvider,
-                    RequireTwoFactorAuth = input.RequireTwoFactorAuth,
-                    PasswordPolicy = input.PasswordPolicy,
                     SessionTimeout = input.SessionTimeout,
                     EnableAuditLogging = input.EnableAuditLogging,
                     EmailNotifications = input.EmailNotifications,
@@ -55,8 +53,6 @@ namespace HRMS.Backend.Controllers
             {
                 existing.EnableSSO = input.EnableSSO;
                 existing.SSOProvider = input.SSOProvider;
-                existing.RequireTwoFactorAuth = input.RequireTwoFactorAuth;
-                existing.PasswordPolicy = input.PasswordPolicy;
                 existing.SessionTimeout = input.SessionTimeout;
                 existing.EnableAuditLogging = input.EnableAuditLogging;
                 existing.EmailNotifications = input.EmailNotifications;

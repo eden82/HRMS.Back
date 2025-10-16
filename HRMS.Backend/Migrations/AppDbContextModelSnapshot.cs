@@ -1136,10 +1136,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<bool>("EnableSSO")
                         .HasColumnType("bit");
 
-                    b.Property<string>("PasswordPolicy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("PushNotifications")
                         .HasColumnType("bit");
 
@@ -1482,10 +1478,6 @@ namespace HRMS.Backend.Migrations
 
                     b.Property<bool>("EnableSSO")
                         .HasColumnType("bit");
-
-                    b.Property<string>("PasswordPolicy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("PushNotifications")
                         .HasColumnType("bit");

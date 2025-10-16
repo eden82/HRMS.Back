@@ -11,8 +11,7 @@ namespace HRMS.Backend.Models
         // Authentication and security
         public bool EnableSSO { get; set; } = false;
         public string SSOProvider { get; set; } = string.Empty;
-        public bool RequireTwoFactorAuth { get; set; } = false;
-        public string PasswordPolicy { get; set; } = "8+ chars, mixed case, numbers";
+        public bool RequireTwoFactorAuth { get; set; } = true;
         public int SessionTimeout { get; set; } = 60;
         public bool EnableAuditLogging { get; set; } = true;
 

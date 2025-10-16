@@ -13,7 +13,7 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin,SystmeAdmin,HR")]
+    //[RoleAuthorize("SuperAdmin,SystmeAdmin,HR")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _db;
