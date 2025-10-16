@@ -26,4 +26,15 @@ dist-ssr
 .vs/
 *.vsidx
  
+
+
+
+# Ignore build outputs
+bin/
+obj/
+
+# Ignore wwwroot and migrations
+wwwroot/
+Migrations/
+
  
