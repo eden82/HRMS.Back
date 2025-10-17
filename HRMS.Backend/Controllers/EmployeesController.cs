@@ -429,34 +429,36 @@ namespace HRMS.Backend.Controllers
         }
         //get total employees in a tenant
         [HttpGet("total-employees/{tenantId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetAll(Guid tenantId)
+        public async Task<IActionResult> GetTotalEmployees(Guid tenantId)
         {
             if (tenantId == Guid.Empty)
                 return BadRequest("tenantId is required.");
 
             var totalEmployees = await _context.Employees
                 .AsNoTracking()
-                .Where(e => e.TenantId == tenantId)
-                .CountAsync();
+                .CountAsync(e => e.TenantId == tenantId);
 
+            return Ok(new { count = totalEmployees });
+        }
+ 
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<EmployeeListDto>>> GetAllEmployees()
+        {
             var employees = await _context.Employees
                 .AsNoTracking()
-                .Where(e => e.TenantId == tenantId)
-                .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-                .Select(e => new
+                .Select(e => new EmployeeListDto
                 {
-                    e.EmployeeID,
-                    e.FirstName,
-                    e.LastName,
-                    e.Email,
-                    e.EmployeeCode,
-                    e.OrganizationId,
-                    e.DepartmentId,
-                    e.TenantId,
+                    EmployeeID = e.EmployeeID,
+                    TenantId = e.TenantId,
+                    FirstName = e.FirstName,
+                    LastName = e.LastName,
+                    Email = e.Email,
+                    EmployeeCode = e.EmployeeCode,
+                    JobTitle = e.JobTitle
                 })
                 .ToListAsync();
 
-            return Ok(new { TotalEmployees = totalEmployees, Employees = employees });
+            return Ok(employees);
         }
 
 

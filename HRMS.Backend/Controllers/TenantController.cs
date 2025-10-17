@@ -8,7 +8,7 @@ using HRMS.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using HRMS.Backend.Filters;
-
+using HRMS.Backend.DTOs;
 
 namespace HRMS.Backend.Controllers
 {
@@ -89,8 +89,34 @@ namespace HRMS.Backend.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Tenant>>> GetAll() =>
-            Ok(await _context.Tenants.AsNoTracking().ToListAsync());
+        public async Task<ActionResult<IEnumerable<TenantDto>>> GetAll()
+        {
+            var tenants = await _context.Tenants
+                .AsNoTracking()
+                .Select(t => new TenantDto
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Domain = t.Domain,
+                    Status = t.Status,       
+                    CreatedAt = t.CreatedAt,
+                    UpdatedAt = t.UpdatedAt,
+                    Industry = t.Industry,
+                    Location = t.Location,
+                    Description = t.Description,
+                    Country = t.Country,
+                    TimeZone = t.TimeZone,
+                    EmployeeManagement = t.EmployeeManagement,
+                    AttendanceTracking = t.AttendanceTracking,
+                    LeaveManagement = t.LeaveManagement,
+                    Recruitment = t.Recruitment,
+                    PerformanceManagement = t.PerformanceManagement,
+                    TrainingDevelopment = t.TrainingDevelopment
+                })
+                .ToListAsync();
+
+            return Ok(tenants);
+        }
 
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] Tenant body)

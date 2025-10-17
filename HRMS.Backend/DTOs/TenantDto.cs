@@ -18,6 +18,8 @@ namespace HRMS.Backend.DTOs
 
         public string Country { get; set; } = string.Empty;
         public string TimeZone { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+
 
         public bool EmployeeManagement { get; set; }
         public bool AttendanceTracking { get; set; }
@@ -25,6 +27,7 @@ namespace HRMS.Backend.DTOs
         public bool Recruitment { get; set; }
         public bool PerformanceManagement { get; set; }
         public bool TrainingDevelopment { get; set; }
+
 
     }
 

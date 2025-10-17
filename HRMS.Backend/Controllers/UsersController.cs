@@ -13,7 +13,7 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[RoleAuthorize("SuperAdmin,SystmeAdmin,HR")]
+    [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -165,6 +165,37 @@ namespace HRMS.Backend.Controllers
                 .ToListAsync();
 
             return Ok(superAdmins);
+        }
+
+
+
+        [HttpGet("systemadmin/{tenantId}")]
+        public async Task<IActionResult> GetTenantSystemAdmin(Guid tenantId)
+        {
+            var superAdmin = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u =>
+                    u.TenantId == tenantId &&
+                    u.UserRoles.Any(ur => ur.Role!.Name == "SystemAdmin"))
+                .Select(user => new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
+                    user.IsActive,
+                    user.LastLoginUtc,
+                    user.CreatedAt
+                })
+                .FirstOrDefaultAsync();
+
+            if (superAdmin == null)
+                return NotFound($"No SystemAdmin found for tenant {tenantId}");
+
+            return Ok(superAdmin);
         }
 
         [HttpGet("search-employee-by-email")]

@@ -66,6 +66,30 @@ namespace HRMS.Backend.Controllers
             ));
         }
 
+        // GET: api/organizations/total
+        // GET: /api/organizations
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll()
+        {
+            var orgs = await _context.Organizations
+                .AsNoTracking()
+                .Select(o => new OrganizationDto(
+                    o.Id,
+                    o.TenantId,
+                    o.Name ?? string.Empty,                
+                    o.Domain ?? string.Empty,              
+                    o.Industry ?? string.Empty,          
+                    o.Location ?? string.Empty,            
+                    o.LogoUrl ?? string.Empty,             
+                    o.OrgCode ?? string.Empty, 
+                    o.IpRestrictions                      
+                ))
+                .ToListAsync();
+
+            return Ok(orgs);
+        }
+
+
         // POST: /api/organizations
         [HttpPost]
         [Consumes("application/json")]
