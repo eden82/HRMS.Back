@@ -21,73 +21,52 @@ namespace HRMS.Backend.Controllers
         private readonly AppDbContext _context;
         public OrganizationsController(AppDbContext context) => _context = context;
 
-        // GET: /api/organizations
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll()
-        {
-            var orgs = await _context.Organizations
-                .AsNoTracking()
-                .Select(o => new OrganizationDto(
-                    o.Id,
-                    o.TenantId,
-                    o.Name,
-                    o.Domain ?? string.Empty,                  // Domain is required, no null-coalescing
-                    o.Industry,
-                    o.Location,
-                    o.LogoUrl,
-                    o.OrgCode ?? string.Empty, // OrgCode may be null
-                    o.IpRestrictions
-                ))
-                .ToListAsync();
-
-            return Ok(orgs);
-        }
 
         // GET: /api/organizations/{id}
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<OrganizationDto>> GetById(Guid id)
         {
-            var o = await _context.Organizations
+            var org = await _context.Organizations
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id);
 
-            if (o == null) return NotFound();
+            if (org == null) return NotFound();
 
             return Ok(new OrganizationDto(
-                o.Id,
-                o.TenantId,
-                o.Name,
-                o.Domain ?? string.Empty,                     // Domain is required, no null-coalescing
-                o.Industry,
-                o.Location,
-                o.LogoUrl,
-                o.OrgCode ?? string.Empty,
-                o.IpRestrictions
+                org.Id,
+                org.TenantId,
+                org.Name ?? string.Empty,
+                org.Domain ?? string.Empty,
+                org.Industry ?? string.Empty,
+                org.Location ?? string.Empty,
+                org.LogoUrl ?? string.Empty,
+                org.OrgCode ?? string.Empty,
+                org.IpRestrictions
             ));
         }
 
-        // GET: api/organizations/total
         // GET: /api/organizations
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll()
         {
             var orgs = await _context.Organizations
                 .AsNoTracking()
-                .Select(o => new OrganizationDto(
-                    o.Id,
-                    o.TenantId,
-                    o.Name ?? string.Empty,                
-                    o.Domain ?? string.Empty,              
-                    o.Industry ?? string.Empty,          
-                    o.Location ?? string.Empty,            
-                    o.LogoUrl ?? string.Empty,             
-                    o.OrgCode ?? string.Empty, 
-                    o.IpRestrictions                      
+                .Select(org => new OrganizationDto(
+                    org.Id,
+                    org.TenantId,
+                    org.Name ?? string.Empty,
+                    org.Domain ?? string.Empty,
+                    org.Industry ?? string.Empty,
+                    org.Location ?? string.Empty,
+                    org.LogoUrl ?? string.Empty,
+                    org.OrgCode ?? string.Empty,
+                    org.IpRestrictions
                 ))
                 .ToListAsync();
 
             return Ok(orgs);
         }
+
 
 
         // POST: /api/organizations
