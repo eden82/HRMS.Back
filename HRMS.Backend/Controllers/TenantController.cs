@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using HRMS.Backend.Filters;
 using HRMS.Backend.DTOs;
 
+
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
@@ -117,6 +118,28 @@ namespace HRMS.Backend.Controllers
 
             return Ok(tenants);
         }
+
+
+
+        [HttpGet("{tenantId:guid}/modules")]
+        [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
+        public async Task<ActionResult<TenantModulesDto>> GetTenantModules(Guid tenantId)
+        {
+            var t = await _context.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenantId);
+            if (t == null) return NotFound();
+
+            return Ok(new TenantModulesDto
+            {
+                EmployeeManagement = t.EmployeeManagement,
+                AttendanceTracking = t.AttendanceTracking,
+                LeaveManagement = t.LeaveManagement,
+                Recruitment = t.Recruitment,
+                PerformanceManagement = t.PerformanceManagement,
+                TrainingDevelopment = t.TrainingDevelopment
+            });
+        }
+
+
 
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] Tenant body)

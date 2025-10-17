@@ -39,6 +39,7 @@ namespace HRMS.Backend.Controllers
             string? FullName = null,
             string? email = null,
             string? message = null,
+            Guid? tenantId = null,
             bool requiresOtp = false,
             bool otpVerified = false
         );
@@ -126,6 +127,7 @@ namespace HRMS.Backend.Controllers
                 role: string.Join(",", roles),
                 FullName: user.FullName,
                 email: user.Email,
+                tenantId: user.TenantId,
                 requiresOtp: false,
                 otpVerified: true
             ));

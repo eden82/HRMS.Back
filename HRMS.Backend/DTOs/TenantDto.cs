@@ -52,6 +52,15 @@ namespace HRMS.Backend.DTOs
         public bool PerformanceManagement { get; set; }
         public bool TrainingDevelopment { get; set; }
     }
+    public class TenantModulesDto
+    {
+        public bool EmployeeManagement { get; set; }
+        public bool AttendanceTracking { get; set; }
+        public bool LeaveManagement { get; set; }
+        public bool Recruitment { get; set; }
+        public bool PerformanceManagement { get; set; }
+        public bool TrainingDevelopment { get; set; }
+    }
 
     // Update
     public class UpdateTenantDto : CreateTenantDto
