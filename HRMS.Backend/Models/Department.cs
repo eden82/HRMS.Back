@@ -24,6 +24,7 @@ namespace HRMS.Backend.Models
         [Column("name")]
         public string DepartmentName { get; set; } = null!;
 
+
         [Column("description")]
         public string? Description { get; set; }
 

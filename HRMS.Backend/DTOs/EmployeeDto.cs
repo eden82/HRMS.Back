@@ -110,6 +110,8 @@ namespace HRMS.Backend.DTOs
         public string? Email { get; set; }
         public string? EmployeeCode { get; set; }
         public string? JobTitle { get; set; }
+        public string? OrganizationName { get; set; }  // ← nullable
+        public string? DepartmentName { get; set; }
 
     }
 

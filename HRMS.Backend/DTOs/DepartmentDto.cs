@@ -9,11 +9,12 @@ namespace HRMS.Backend.DTOs
         public Guid Id { get; set; }
         public Guid OrganizationId { get; set; }
         public Guid TenantId { get; set; }
-        public string DepartmentName { get; set; } = null!;
+        public string Name { get; set; } = null!;
         public string? DepartmentCode { get; set; }
         public Guid DepartmentHeadId { get; set; }
         public string DepartmentHeadName { get; set; } = string.Empty; // convenience
         public int InitialEmployeeCount { get; set; }
+
         public Guid? ParentDepartmentId { get; set; }
     }
 

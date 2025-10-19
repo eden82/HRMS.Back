@@ -460,8 +460,33 @@ namespace HRMS.Backend.Controllers
 
             return Ok(employees);
         }
+        [HttpGet("by-tenant/{tenantId}")]
+        public async Task<ActionResult<IEnumerable<EmployeeListDto>>> GetByTenant(string tenantId)
+        {
+            if (!Guid.TryParse(tenantId, out var tenantGuid))
+                return BadRequest("Invalid tenantId format.");
 
+            var employees = await _context.Employees
+                .Where(e => e.TenantId == tenantGuid)
+                .Select(e => new EmployeeListDto
+                {
+                    EmployeeID = e.EmployeeID,
+                    TenantId = e.TenantId,
+                    OrganizationId = e.OrganizationId.HasValue ? e.OrganizationId : null,
+                    DepartmentId = e.DepartmentId.HasValue ? e.DepartmentId : null,
+                    FirstName = e.FirstName,
+                    LastName = e.LastName,
+                    Email = e.Email,
+                    EmployeeCode = e.EmployeeCode,
+                    JobTitle = e.JobTitle,
+                    OrganizationName = e.Organization != null ? e.Organization.Name : null,
+                    DepartmentName = e.Department != null ? e.Department.DepartmentName : null
+                })
+                .ToListAsync();
 
+            // Return empty array instead of 404
+            return Ok(employees);
+        }
 
         // Helper method for generating a unique employee code
         private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)
