@@ -508,7 +508,7 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("nationality");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
 
@@ -2051,8 +2051,7 @@ namespace HRMS.Backend.Migrations
                         .WithMany("Employees")
                         .HasForeignKey("OrganizationId", "TenantId")
                         .HasPrincipalKey("Id", "TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HRMS.Backend.Models.Department", "Department")
                         .WithMany("Employees")

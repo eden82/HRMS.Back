@@ -211,7 +211,7 @@ namespace HRMS.Backend.Data
                  .IsRequired(false);   // ← now optional
                 e.Property(x => x.OrganizationId)
                  .HasColumnName("organization_id")
-                 .IsRequired();
+                 .IsRequired(false);
                 e.Property(x => x.TenantId)
                  .HasColumnName("tenant_id")
                  .IsRequired();
@@ -428,7 +428,9 @@ namespace HRMS.Backend.Data
             model.Entity<UserRole>()
                 .HasOne(ur => ur.User)
                 .WithMany(u => u.UserRoles)
-                .HasForeignKey(ur => ur.UserId);
+                .HasForeignKey(ur => ur.UserId)
+                .OnDelete(DeleteBehavior.Cascade); 
+
 
             model.Entity<UserRole>()
                 .HasOne(ur => ur.Role)

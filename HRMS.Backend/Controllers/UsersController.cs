@@ -19,6 +19,7 @@ namespace HRMS.Backend.Controllers
         private readonly AppDbContext _db;
         private readonly IPasswordHasher _hasher;
 
+
         public UsersController(AppDbContext db, IPasswordHasher hasher)
         {
             _db = db;
@@ -198,6 +199,34 @@ namespace HRMS.Backend.Controllers
             return Ok(superAdmin);
         }
 
+
+
+
+        [HttpGet("by-tenant/{tenantId:guid}")]
+        public async Task<IActionResult> GetUsersByTenantId(Guid tenantId)
+        {
+            var users = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.TenantId == tenantId)
+                .Select(user => new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    Roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList(),
+                    user.IsActive,
+                    user.LastLoginUtc,
+                    user.CreatedAt
+                })
+                .ToListAsync();
+
+
+            return Ok(users);
+        }
+
         [HttpGet("search-employee-by-email")]
     public async Task<IActionResult> SearchEmployeeByEmail([FromQuery] string email)
     {
@@ -227,8 +256,19 @@ namespace HRMS.Backend.Controllers
             employee.TenantId
         });
     }
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.Id == id);
 
+            if (user == null) return NotFound();
 
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
 
 
     }

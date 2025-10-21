@@ -463,17 +463,20 @@ namespace HRMS.Backend.Controllers
         [HttpGet("by-tenant/{tenantId}")]
         public async Task<ActionResult<IEnumerable<EmployeeListDto>>> GetByTenant(string tenantId)
         {
+
             if (!Guid.TryParse(tenantId, out var tenantGuid))
                 return BadRequest("Invalid tenantId format.");
 
+            // Simple query that only filters by TenantId - no OrganizationId required
             var employees = await _context.Employees
-                .Where(e => e.TenantId == tenantGuid)
+                .Where(e => e.TenantId == tenantGuid)  
                 .Select(e => new EmployeeListDto
                 {
                     EmployeeID = e.EmployeeID,
+
                     TenantId = e.TenantId,
-                    OrganizationId = e.OrganizationId.HasValue ? e.OrganizationId : null,
-                    DepartmentId = e.DepartmentId.HasValue ? e.DepartmentId : null,
+                    OrganizationId = e.OrganizationId,  
+                    DepartmentId = e.DepartmentId,      
                     FirstName = e.FirstName,
                     LastName = e.LastName,
                     Email = e.Email,
@@ -484,9 +487,48 @@ namespace HRMS.Backend.Controllers
                 })
                 .ToListAsync();
 
+
             // Return empty array instead of 404
             return Ok(employees);
         }
+
+
+        // GET: api/employees/all
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<object>>> GetAllEmployeesWithDetails()
+        {
+            var employees = await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Organization)
+                .Include(e => e.Department)
+                .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                .Select(e => new
+                {
+                    e.EmployeeID,
+                    e.TenantId,
+                    e.OrganizationId,
+                    OrganizationName = e.Organization != null ? e.Organization.Name : null,
+                    e.DepartmentId,
+                    DepartmentName = e.Department != null ? e.Department.DepartmentName : null,
+                    FullName = $"{e.FirstName} {e.LastName}",
+                    e.FirstName,
+                    e.LastName,
+                    e.Email,
+                    e.EmployeeCode,
+                    e.JobTitle,
+                    e.HireDate,
+                    e.Salary,
+                    e.Currency,
+                    e.EmploymentType
+                })
+                .ToListAsync();
+
+            if (!employees.Any())
+                return NotFound("No employees found.");
+
+            return Ok(employees);
+        }
+
 
         // Helper method for generating a unique employee code
         private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)
