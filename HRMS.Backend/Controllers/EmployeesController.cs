@@ -262,7 +262,7 @@ namespace HRMS.Backend.Controllers
 
         // PUT: api/employees/{id}
         [HttpPut("{id:guid}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] EmployeeUpdateDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromForm] EmployeeUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
             if (id != dto.EmployeeId) return BadRequest("Employee ID mismatch.");
@@ -284,6 +284,9 @@ namespace HRMS.Backend.Controllers
                 if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
             }
 
+
+
+
             // Uniqueness checks on change
             if (!string.Equals(e.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
             {
@@ -291,6 +294,95 @@ namespace HRMS.Backend.Controllers
                     x.TenantId == dto.TenantId && x.Email == dto.Email && x.EmployeeID != e.EmployeeID);
                 if (emailClash) return Conflict(new { message = "Email already exists in tenant." });
             }
+
+            // Handle file uploads (optional)
+            string rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+
+            // PHOTO
+            if (dto.Photo != null && dto.Photo.Length > 0)
+            {
+                var folder = Path.Combine(rootPath, "uploads", "employees", "Photo");
+                Directory.CreateDirectory(folder);
+
+                // Delete old file if exists
+                if (!string.IsNullOrWhiteSpace(e.PhotoUrl))
+                {
+                    var oldFilePath = Path.Combine(rootPath, e.PhotoUrl.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                        System.IO.File.Delete(oldFilePath);
+                }
+
+                var fileName = Guid.NewGuid() + Path.GetExtension(dto.Photo.FileName);
+                var filePath = Path.Combine(folder, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await dto.Photo.CopyToAsync(stream);
+
+                e.PhotoUrl = $"/uploads/employees/Photo/{fileName}";
+            }
+
+            // RESUME
+            if (dto.ResumeFile != null && dto.ResumeFile.Length > 0)
+            {
+                var folder = Path.Combine(rootPath, "uploads", "employees", "ResumeFile");
+                Directory.CreateDirectory(folder);
+
+                if (!string.IsNullOrWhiteSpace(e.Resume))
+                {
+                    var oldFilePath = Path.Combine(rootPath, e.Resume.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                        System.IO.File.Delete(oldFilePath);
+                }
+
+                var fileName = Guid.NewGuid() + Path.GetExtension(dto.ResumeFile.FileName);
+                var filePath = Path.Combine(folder, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await dto.ResumeFile.CopyToAsync(stream);
+
+                e.Resume = $"/uploads/employees/ResumeFile/{fileName}";
+            }
+
+            // CONTRACT
+            if (dto.ContractFile != null && dto.ContractFile.Length > 0)
+            {
+                var folder = Path.Combine(rootPath, "uploads", "employees", "ContractFile");
+                Directory.CreateDirectory(folder);
+
+                if (!string.IsNullOrWhiteSpace(e.ContractFile))
+                {
+                    var oldFilePath = Path.Combine(rootPath, e.ContractFile.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                        System.IO.File.Delete(oldFilePath);
+                }
+
+                var fileName = Guid.NewGuid() + Path.GetExtension(dto.ContractFile.FileName);
+                var filePath = Path.Combine(folder, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await dto.ContractFile.CopyToAsync(stream);
+
+                e.ContractFile = $"/uploads/employees/ContractFile/{fileName}";
+            }
+
+            // CERTIFICATION
+            if (dto.CertificationFile != null && dto.CertificationFile.Length > 0)
+            {
+                var folder = Path.Combine(rootPath, "uploads", "employees", "certifications");
+                Directory.CreateDirectory(folder);
+
+                if (!string.IsNullOrWhiteSpace(e.Certification))
+                {
+                    var oldFilePath = Path.Combine(rootPath, e.Certification.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                        System.IO.File.Delete(oldFilePath);
+                }
+
+                var fileName = Guid.NewGuid() + Path.GetExtension(dto.CertificationFile.FileName);
+                var filePath = Path.Combine(folder, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await dto.CertificationFile.CopyToAsync(stream);
+
+                e.Certification = $"/uploads/employees/certifications/{fileName}";
+            }
+
 
 
             string? newCode = dto.EmployeeCode;
@@ -332,7 +424,7 @@ namespace HRMS.Backend.Controllers
             e.JobTitle = dto.JobTitle.Trim();
             e.EmploymentType = dto.EmploymentType.Trim();
             e.EmployeeEducationStatus = dto.EmployeeEducationStatus.Trim();
-            e.PhotoUrl = dto.PhotoUrl.Trim();
+            //e.PhotoUrl = dto.Photo.Trim();
             e.HireDate = dto.HireDate;
 
             e.BenefitsEnrollment = dto.BenefitsEnrollment;
@@ -343,10 +435,10 @@ namespace HRMS.Backend.Controllers
             e.BankAccountNumber = dto.BankAccountNumber;
             e.TaxIdenitificationNumber = dto.TaxIdenitificationNumber;
             e.PassportNumber = dto.PassportNumber;
-            e.Resume = dto.Resume;
-            e.ContractFile = dto.ContractFile;
+            //e.Resume = dto.Resume;
+            //e.ContractFile = dto.ContractFile;
             e.WorkLocation = dto.WorkLocation;
-            e.Certification = dto.Certification;
+            //e.Certification = dto.Certification;
 
             e.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();

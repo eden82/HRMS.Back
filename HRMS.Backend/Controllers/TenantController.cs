@@ -15,7 +15,7 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin, SystemAdmin")]
+    [RoleAuthorize("SuperAdmin, SystemAdmin,HR")]
     public class TenantsController : ControllerBase
     {
         private readonly AppDbContext _context;

@@ -80,7 +80,7 @@ namespace HRMS.Backend.DTOs
         [Required, MaxLength(150)] public string JobTitle { get; set; } = string.Empty;
         [Required, MaxLength(50)] public string EmploymentType { get; set; } = string.Empty;
         [Required, MaxLength(100)] public string EmployeeEducationStatus { get; set; } = string.Empty;
-        [Required, Url, MaxLength(2083)] public string PhotoUrl { get; set; } = string.Empty;
+        //[Required, Url, MaxLength(2083)] public string PhotoUrl { get; set; } = string.Empty;
         [Required] public DateTime HireDate { get; set; }
 
         [MaxLength(50)] public string? EmployeeCode { get; set; }
@@ -92,10 +92,14 @@ namespace HRMS.Backend.DTOs
         public string? BankAccountNumber { get; set; }
         public string? TaxIdenitificationNumber { get; set; }
         public string? PassportNumber { get; set; }
-        public string? Resume { get; set; }
-        public string? ContractFile { get; set; }
+        //public string? Resume { get; set; }
+        //public string? ContractFile { get; set; }
         public string? WorkLocation { get; set; }
-        public string? Certification { get; set; }
+        //public string? Certification { get; set; }
+        public IFormFile? Photo { get; set; }
+        public IFormFile? ResumeFile { get; set; }
+        public IFormFile? ContractFile { get; set; }
+        public IFormFile? CertificationFile { get; set; }
 
     }
 
