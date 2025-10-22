@@ -30,6 +30,15 @@ namespace HRMS.Backend.Controllers
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
+
+            //  Check if PermanentTenantSettings exist
+            var permanentSetting = await _context.PermanentTenantSettings.AsNoTracking().FirstOrDefaultAsync();
+            if (permanentSetting == null)
+            {
+                return BadRequest(new { message = "Please create a permanent tenant setting first before adding a new tenant." });
+            }
+
+
             if (tenant.Id == Guid.Empty)
                 tenant.Id = Guid.NewGuid();
 
@@ -40,8 +49,7 @@ namespace HRMS.Backend.Controllers
             //  Declare tenantSetting outside to keep scope valid
             TenantSetting? tenantSetting = null;
 
-            // Fetch permanent default setting
-            var permanentSetting = await _context.PermanentTenantSettings.AsNoTracking().FirstOrDefaultAsync();
+
 
             if (permanentSetting != null)
             {
