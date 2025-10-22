@@ -271,9 +271,21 @@ namespace HRMS.Backend.Controllers
             if (e is null) return NotFound();
 
             // FK existence checks (same as create)
-            var org = await _context.Organizations.AsNoTracking()
-                         .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
-            if (org is null) return BadRequest("Organization not found in the specified tenant.");
+            //var org = await _context.Organizations.AsNoTracking()
+            //             .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+            //if (org is null) return BadRequest("Organization not found in the specified tenant.");
+
+            Organization? org = null;
+
+            if (dto.OrganizationId != null)
+            {
+                org = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
+
+                if (org is null)
+                    return BadRequest("Organization not found in the specified tenant.");
+            }
+
 
             if (dto.DepartmentId.HasValue)
             {
