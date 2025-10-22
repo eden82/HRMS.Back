@@ -265,25 +265,30 @@ namespace HRMS.Backend.Controllers
         public async Task<IActionResult> Update(Guid id, [FromForm] EmployeeUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            Console.WriteLine($"Updating employee with ID: {id}");
             if (id != dto.EmployeeId) return BadRequest("Employee ID mismatch.");
 
             var e = await _context.Employees.FirstOrDefaultAsync(x => x.EmployeeID == id);
             if (e is null) return NotFound();
 
-            // FK existence checks (same as create)
-            var org = await _context.Organizations.AsNoTracking()
-                         .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId && o.TenantId == dto.TenantId);
-            if (org is null) return BadRequest("Organization not found in the specified tenant.");
+
+            if (dto.OrganizationId.HasValue)
+            {
+                var org = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value && o.TenantId == dto.TenantId);
+
+                if (org is null)
+                    return BadRequest("Organization not found in the specified tenant.");
+            }
 
             if (dto.DepartmentId.HasValue)
             {
-                var deptOk = await _context.Departments.AnyAsync(d =>
-                    d.Id == dto.DepartmentId.Value &&
-                    d.OrganizationId == dto.OrganizationId &&
-                    d.TenantId == dto.TenantId);
-                if (!deptOk) return BadRequest("Department not found in the specified organization/tenant.");
-            }
+                var dept = await _context.Departments.AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.Id == dto.DepartmentId.Value && d.TenantId == dto.TenantId);
 
+                if (dept is null)
+                    return BadRequest("Department not found in the specified tenant.");
+            }
 
 
 
@@ -405,7 +410,6 @@ namespace HRMS.Backend.Controllers
             }
 
             // Apply changes
-            e.TenantId = dto.TenantId;
             e.OrganizationId = dto.OrganizationId;
             e.DepartmentId = dto.DepartmentId;
             e.FirstName = dto.FirstName.Trim();
