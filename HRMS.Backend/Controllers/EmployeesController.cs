@@ -449,6 +449,7 @@ namespace HRMS.Backend.Controllers
             return NoContent();
         }
 
+
         // GET by department
         [HttpGet("by-department/{tenantId}/{departmentId}")]
         public async Task<ActionResult<object>> GetByDepartment(Guid tenantId, Guid departmentId)

@@ -7,13 +7,14 @@ using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Filters;
+using Microsoft.EntityFrameworkCore.Storage;
 
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
+    //[RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -23,7 +24,8 @@ namespace HRMS.Backend.Controllers
         public UsersController(AppDbContext db, IPasswordHasher hasher)
         {
             _db = db;
-            _hasher = hasher;
+            _hasher = hasher;   
+
         }
 
         public sealed class CreateUserDto
