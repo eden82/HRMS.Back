@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Backend.Models
 {
@@ -31,6 +32,9 @@ namespace HRMS.Backend.Models
         // NEW: lives here now (moved from Tenant)
         [MaxLength(2048)]
         public string? IpRestrictions { get; set; }
+
+        [Column("description"), MaxLength(400)]
+        public string? Description { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

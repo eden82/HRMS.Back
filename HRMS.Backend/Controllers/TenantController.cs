@@ -27,6 +27,20 @@ namespace HRMS.Backend.Controllers
             if (string.IsNullOrWhiteSpace(tenant.Domain))
                 ModelState.AddModelError(nameof(tenant.Domain), "Domain is required.");
 
+
+            // Validate domain format using Regex
+            var domainPattern = @"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$";
+            if (!string.IsNullOrWhiteSpace(tenant.Domain) && !System.Text.RegularExpressions.Regex.IsMatch(tenant.Domain, domainPattern))
+            {
+                ModelState.AddModelError(nameof(tenant.Domain), "Invalid domain format. Example: example.com");
+            }
+
+            // Ensure no duplicate domain
+            var exists = await _context.Tenants.AnyAsync(t => t.Domain == tenant.Domain);
+            if (exists)
+                ModelState.AddModelError(nameof(tenant.Domain), "This domain already exists.");
+
+
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
@@ -53,6 +67,14 @@ namespace HRMS.Backend.Controllers
 
             if (permanentSetting != null)
             {
+
+                // --- Validation: SSOProvider must be null if EnableSSO is false ---
+                if (!permanentSetting.EnableSSO && !string.IsNullOrWhiteSpace(permanentSetting.SSOProvider))
+                {
+                    return BadRequest(new { message = "PermanentTenantSetting has EnableSSO = false but SSOProvider is not null. Please fix it first." });
+                }
+
+
                 tenantSetting = new TenantSetting
                 {
                     TenantId = tenant.Id,
@@ -69,6 +91,7 @@ namespace HRMS.Backend.Controllers
                     BackupFrequency = permanentSetting.BackupFrequency,
                     DataRetentionYears = permanentSetting.DataRetentionYears,
                     DataEncryptionAtRest = permanentSetting.DataEncryptionAtRest,
+                    RequireTwoFactorAuth = permanentSetting.RequireTwoFactorAuth,
 
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

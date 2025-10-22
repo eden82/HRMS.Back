@@ -25,6 +25,10 @@ namespace HRMS.Backend.Controllers
         {
             if (input == null) return BadRequest("Request body is required.");
 
+            // Validation: if SSO is disabled, SSOProvider must be null
+            if (!input.EnableSSO && !string.IsNullOrWhiteSpace(input.SSOProvider))
+                return BadRequest("SSOProvider must be null when EnableSSO is false.");
+
             // Check if setting for this tenant already exists
             var existing = await _db.TenantSettings.FirstOrDefaultAsync(s => s.TenantId == input.TenantId);
             if (existing != null)
@@ -46,6 +50,7 @@ namespace HRMS.Backend.Controllers
                 BackupFrequency = input.BackupFrequency,
                 DataRetentionYears = input.DataRetentionYears,
                 DataEncryptionAtRest = input.DataEncryptionAtRest,
+                RequireTwoFactorAuth = input.RequireTwoFactorAuth,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -63,6 +68,10 @@ namespace HRMS.Backend.Controllers
             var setting = await _db.TenantSettings.FirstOrDefaultAsync(s => s.TenantId == tenantId);
             if (setting == null) return NotFound("Tenant setting not found.");
 
+            // Validation: if SSO is disabled, SSOProvider must be null
+            if (!input.EnableSSO && !string.IsNullOrWhiteSpace(input.SSOProvider))
+                return BadRequest("SSOProvider must be null when EnableSSO is false.");
+
             // Update values
             setting.EnableSSO = input.EnableSSO;
             setting.SSOProvider = input.SSOProvider;
@@ -77,6 +86,7 @@ namespace HRMS.Backend.Controllers
             setting.BackupFrequency = input.BackupFrequency;
             setting.DataRetentionYears = input.DataRetentionYears;
             setting.DataEncryptionAtRest = input.DataEncryptionAtRest;
+            setting.RequireTwoFactorAuth = input.RequireTwoFactorAuth;
             setting.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();

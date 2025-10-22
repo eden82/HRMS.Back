@@ -52,4 +52,31 @@ public class EmailService
         await client.DisconnectAsync(true);
     }
 
+    public async Task SendEmailAsync(string toEmail, string subject, string body)
+    {
+        var emailSettings = _config.GetSection("EmailSettings");
+
+        var smtpServer = emailSettings["SmtpServer"];
+        var senderEmail = emailSettings["SenderEmail"];
+        var senderName = emailSettings["SenderName"];
+        var password = emailSettings["Password"];
+        if (!int.TryParse(emailSettings["Port"], out int port))
+            throw new Exception("SMTP Port is missing or invalid.");
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(senderName!, senderEmail!));
+        message.To.Add(MailboxAddress.Parse(toEmail));
+        message.Subject = subject;
+        message.Body = new TextPart("plain") { Text = body };
+
+        using var client = new SmtpClient();
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+        await client.ConnectAsync(smtpServer!, port, MailKit.Security.SecureSocketOptions.StartTls);
+        await client.AuthenticateAsync(senderEmail!, password!);
+        await client.SendAsync(message);
+        await client.DisconnectAsync(true);
+    }
+
+
 }

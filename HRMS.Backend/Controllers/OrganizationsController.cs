@@ -9,6 +9,8 @@ using HRMS.Backend.Data;
 using HRMS.Backend.Models;
 using HRMS.Backend.DTOs;
 using HRMS.Backend.Filters;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace HRMS.Backend.Controllers
 {
@@ -19,7 +21,14 @@ namespace HRMS.Backend.Controllers
     public class OrganizationsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public OrganizationsController(AppDbContext context) => _context = context;
+        private readonly IWebHostEnvironment _env;
+
+        public OrganizationsController(AppDbContext context, IWebHostEnvironment env)
+        {
+            _context = context;
+            _env = env;
+        }
+
 
 
         // GET: /api/organizations/{id}
@@ -32,17 +41,20 @@ namespace HRMS.Backend.Controllers
 
             if (org == null) return NotFound();
 
-            return Ok(new OrganizationDto(
-                org.Id,
-                org.TenantId,
-                org.Name ?? string.Empty,
-                org.Domain ?? string.Empty,
-                org.Industry ?? string.Empty,
-                org.Location ?? string.Empty,
-                org.LogoUrl ?? string.Empty,
-                org.OrgCode ?? string.Empty,
-                org.IpRestrictions
-            ));
+            return Ok(new OrganizationDto
+            {
+                Id = org.Id,
+                TenantId = org.TenantId,
+                Name = org.Name ?? string.Empty,
+                Domain = org.Domain ?? string.Empty,
+                Industry = org.Industry ?? string.Empty,
+                Location = org.Location ?? string.Empty,
+                LogoUrl = org.LogoUrl ?? string.Empty,
+                OrgCode = org.OrgCode ?? string.Empty,
+                Description = org.Description ?? string.Empty,
+                IpRestrictions = org.IpRestrictions
+            });
+
         }
 
         // GET: /api/organizations
@@ -51,29 +63,32 @@ namespace HRMS.Backend.Controllers
         {
             var orgs = await _context.Organizations
                 .AsNoTracking()
-                .Select(org => new OrganizationDto(
-                    org.Id,
-                    org.TenantId,
-                    org.Name ?? string.Empty,
-                    org.Domain ?? string.Empty,
-                    org.Industry ?? string.Empty,
-                    org.Location ?? string.Empty,
-                    org.LogoUrl ?? string.Empty,
-                    org.OrgCode ?? string.Empty,
-                    org.IpRestrictions
-                ))
+                .Select(org => new OrganizationDto
+                {
+                    Id = org.Id,
+                    TenantId = org.TenantId,
+                    Name = org.Name ?? string.Empty,
+                    Domain = org.Domain ?? string.Empty,
+                    Industry = org.Industry ?? string.Empty,
+                    Location = org.Location ?? string.Empty,
+                    LogoUrl = org.LogoUrl ?? string.Empty,
+                    OrgCode = org.OrgCode ?? string.Empty,
+                    Description = org.Description ?? string.Empty,
+                    IpRestrictions = org.IpRestrictions
+                })
+
                 .ToListAsync();
 
             return Ok(orgs);
+
         }
 
 
 
         // POST: /api/organizations
         [HttpPost]
-        [Consumes("application/json")]
         [RoleAuthorize("SuperAdmin , SystemAdmin")]
-        public async Task<ActionResult<OrganizationDto>> Create([FromBody] CreateOrganizationDto input)
+        public async Task<ActionResult<OrganizationDto>> Create([FromForm] CreateOrganizationDto input)
         {
             // Treat whitespace as empty
             if (string.IsNullOrWhiteSpace(input.Domain))
@@ -82,12 +97,26 @@ namespace HRMS.Backend.Controllers
                 ModelState.AddModelError(nameof(input.Industry), "Industry can't be empty");
             if (string.IsNullOrWhiteSpace(input.Location))
                 ModelState.AddModelError(nameof(input.Location), "Location can't be empty");
-            if (string.IsNullOrWhiteSpace(input.LogoUrl))
-                ModelState.AddModelError(nameof(input.LogoUrl), "Logo URL can't be empty");
+            if (input.LogoUrl == null)
+                ModelState.AddModelError(nameof(input.LogoUrl), "Logo file is required");
+
+
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             var tenantExists = await _context.Tenants.AnyAsync(t => t.Id == input.TenantId);
             if (!tenantExists) return BadRequest($"Tenant {input.TenantId} not found.");
+
+
+            // Check if domain already exists in organizations for this tenant
+            var domainExists = await _context.Organizations
+                .AnyAsync(o => o.TenantId == input.TenantId &&
+                               o.Domain.ToUpper() == input.Domain.Trim().ToUpper());
+
+            if (domainExists)
+                return BadRequest(new { message = $"The domain '{input.Domain}' is already in use for this tenant." });
+
+
+
 
             // OrgCode: provided (normalized) or auto-generate unique per tenant
             var orgCode = string.IsNullOrWhiteSpace(input.OrgCode)
@@ -102,6 +131,27 @@ namespace HRMS.Backend.Controllers
                 if (clash) return Conflict(new { message = $"org_code '{orgCode}' already exists for this tenant." });
             }
 
+            string? logourl = null;
+
+            // logo
+            if (input.LogoUrl != null)
+            {
+
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolderLogo = Path.Combine(rootPath, "uploads", "Organization", "Logo");
+
+
+                if (!Directory.Exists(uploadsFolderLogo)) Directory.CreateDirectory(uploadsFolderLogo);
+
+                var fileNameLogo = Guid.NewGuid().ToString() + Path.GetExtension(input.LogoUrl.FileName);
+                var filePathLogo = Path.Combine(uploadsFolderLogo, fileNameLogo);
+
+                using (var stream = new FileStream(filePathLogo, FileMode.Create))
+                    await input.LogoUrl.CopyToAsync(stream);
+
+                logourl = $"/uploads/Organization/{fileNameLogo}";
+            }
+
             var org = new Organization
             {
                 Id = Guid.NewGuid(),
@@ -110,9 +160,11 @@ namespace HRMS.Backend.Controllers
                 Domain = input.Domain.Trim(),   // REQUIRED
                 Industry = input.Industry.Trim(),
                 Location = input.Location.Trim(),
-                LogoUrl = input.LogoUrl.Trim(),
+                //LogoUrl = input.LogoUrl.Trim(),
+                LogoUrl = logourl ?? string.Empty,
                 OrgCode = orgCode,
                 IpRestrictions = string.IsNullOrWhiteSpace(input.IpRestrictions) ? null : input.IpRestrictions!.Trim(),
+                Description = input.Description?.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -120,25 +172,27 @@ namespace HRMS.Backend.Controllers
             _context.Organizations.Add(org);
             await _context.SaveChangesAsync();
 
-            var dto = new OrganizationDto(
-                org.Id,
-                org.TenantId,
-                org.Name,
-                org.Domain,
-                org.Industry,
-                org.Location,
-                org.LogoUrl,
-                org.OrgCode ?? string.Empty,
-                org.IpRestrictions
-            );
+            var dto = new OrganizationDto
+            {
+                Id = org.Id,
+                TenantId = org.TenantId,
+                Name = org.Name,
+                Domain = org.Domain,
+                Industry = org.Industry,
+                Location = org.Location,
+                OrgCode = org.OrgCode ?? string.Empty,
+                LogoUrl = org.LogoUrl ?? string.Empty,
+                IpRestrictions = org.IpRestrictions
+            };
+
+
 
             return CreatedAtAction(nameof(GetById), new { id = org.Id }, dto);
         }
 
         // PUT: /api/organizations/{id}
         [HttpPut("{id:guid}")]
-        [Consumes("application/json")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateOrganizationDto input)
+        public async Task<IActionResult> Update(Guid id, [FromForm] UpdateOrganizationDto input)
         {
             if (id != input.Id) return BadRequest("Organization ID mismatch.");
 
@@ -148,9 +202,10 @@ namespace HRMS.Backend.Controllers
                 ModelState.AddModelError(nameof(input.Industry), "Industry can't be empty");
             if (string.IsNullOrWhiteSpace(input.Location))
                 ModelState.AddModelError(nameof(input.Location), "Location can't be empty");
-            if (string.IsNullOrWhiteSpace(input.LogoUrl))
-                ModelState.AddModelError(nameof(input.LogoUrl), "Logo URL can't be empty");
+            if (input.LogoUrl == null)
+                ModelState.AddModelError(nameof(input.LogoUrl), "Logo file is required");
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
 
             var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == id);
             if (org == null) return NotFound();
@@ -162,11 +217,43 @@ namespace HRMS.Backend.Controllers
                 org.TenantId = input.TenantId;
             }
 
+
+            //  Handle file upload (replace old logo if a new one is uploaded)
+            if (input.LogoUrl != null && input.LogoUrl.Length > 0)
+            {
+                var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsFolder = Path.Combine(rootPath, "uploads", "Organization", "Logo");
+
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                // Optional: delete old logo file
+                if (!string.IsNullOrWhiteSpace(org.LogoUrl))
+                {
+                    var oldFilePath = Path.Combine(rootPath, org.LogoUrl.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                    {
+                        System.IO.File.Delete(oldFilePath);
+                    }
+                }
+
+                // Save new logo
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(input.LogoUrl.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await input.LogoUrl.CopyToAsync(stream);
+
+                org.LogoUrl = $"/uploads/Organization/Logo/{fileName}";
+            }
+
             org.Name = input.Name.Trim();
             org.Domain = input.Domain.Trim();   // REQUIRED
             org.Industry = input.Industry.Trim();
             org.Location = input.Location.Trim();
-            org.LogoUrl = input.LogoUrl.Trim();
+
+
+            org.Description = string.IsNullOrWhiteSpace(input.Description)
+                ? null
+                : input.Description!.Trim();
 
             if (!string.IsNullOrWhiteSpace(input.OrgCode))
             {

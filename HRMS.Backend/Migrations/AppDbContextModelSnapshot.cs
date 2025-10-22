@@ -975,6 +975,11 @@ namespace HRMS.Backend.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)")
+                        .HasColumnName("description");
+
                     b.Property<string>("Domain")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -1143,7 +1148,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("SSOProvider")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SessionTimeout")
@@ -1486,7 +1490,6 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("SSOProvider")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SessionTimeout")

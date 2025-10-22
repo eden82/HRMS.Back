@@ -7,7 +7,7 @@ namespace HRMS.Backend.DTOs
     {
 
         public bool EnableSSO { get; set; }
-        public string SSOProvider { get; set; } = string.Empty;
+        public string? SSOProvider { get; set; }
         public bool RequireTwoFactorAuth { get; set; }
         public string PasswordPolicy { get; set; } = "8+ chars, mixed case, numbers";
         public int SessionTimeout { get; set; }
@@ -29,7 +29,7 @@ namespace HRMS.Backend.DTOs
         public Guid TenantId { get; set; }
 
         public bool EnableSSO { get; set; } = false;
-        public string SSOProvider { get; set; } = string.Empty;
+        public string? SSOProvider { get; set; }
         public bool RequireTwoFactorAuth { get; set; } = false;
 
         public string PasswordPolicy { get; set; } = "8+ chars, mixed case, numbers";
