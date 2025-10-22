@@ -28,6 +28,11 @@ namespace HRMS.Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateOrUpdate([FromBody] PermanentTenantSettingDto input)
         {
+
+            // Validation: if SSO is disabled, SSOProvider must be null
+            if (!input.EnableSSO && !string.IsNullOrWhiteSpace(input.SSOProvider))
+                return BadRequest("SSOProvider must be null when EnableSSO is false.");
+
             var existing = await _db.PermanentTenantSettings.FirstOrDefaultAsync();
 
             if (existing == null)
@@ -44,6 +49,7 @@ namespace HRMS.Backend.Controllers
                     DefaultExportFormat = input.DefaultExportFormat,
                     BackupFrequency = input.BackupFrequency,
                     DataRetentionYears = input.DataRetentionYears,
+                    RequireTwoFactorAuth = input.RequireTwoFactorAuth,
                     DataEncryptionAtRest = input.DataEncryptionAtRest,
                     CreatedAt = DateTime.UtcNow,
                 };
@@ -57,6 +63,7 @@ namespace HRMS.Backend.Controllers
                 existing.EnableAuditLogging = input.EnableAuditLogging;
                 existing.EmailNotifications = input.EmailNotifications;
                 existing.PushNotifications = input.PushNotifications;
+                existing.RequireTwoFactorAuth = input.RequireTwoFactorAuth;
                 existing.CriticalAlertsOnly = input.CriticalAlertsOnly;
                 existing.DefaultExportFormat = input.DefaultExportFormat;
                 existing.BackupFrequency = input.BackupFrequency;

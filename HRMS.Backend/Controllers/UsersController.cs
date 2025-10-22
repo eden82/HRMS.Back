@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using HRMS.Backend.Data;
+using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -19,12 +20,14 @@ namespace HRMS.Backend.Controllers
     {
         private readonly AppDbContext _db;
         private readonly IPasswordHasher _hasher;
+        private readonly EmailService _emailService;
 
 
-        public UsersController(AppDbContext db, IPasswordHasher hasher)
+        public UsersController(AppDbContext db, IPasswordHasher hasher, EmailService emailService)
         {
             _db = db;
-            _hasher = hasher;   
+            _hasher = hasher;
+            _emailService = emailService;
 
         }
 
@@ -94,9 +97,75 @@ namespace HRMS.Backend.Controllers
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
+
+
+            //  Send the password email here
+            try
+            {
+                var message = $"Welcome {user.FullName},\n\n" +
+                              $"Your HRMS account has been created.\n\n" +
+                              $"Login details:\n" +
+                              $"Email: {user.Email}\n" +
+                              $"Password: {input.Password}\n\n" +
+                              $"Please keep this information secure.\n\n" +
+                              $"Best regards,\nHRMS Team";
+
+                await _emailService.SendEmailAsync(user.Email!, "Welcome to HRMS", message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send email: {ex.Message}");
+                // Optional: log or handle gracefully, but don’t fail registration
+            }
+
             return CreatedAtAction(nameof(GetById), new { id = user.Id },
                 new { user.Id, user.FullName, user.Email, Role = input.Role });
         }
+
+        [HttpPut("update-password")]
+        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto input)
+        {
+            if (string.IsNullOrWhiteSpace(input.NewPassword))
+                return BadRequest("New password cannot be empty.");
+
+            var user = await _db.Users.FindAsync(input.UserId);
+            if (user == null)
+                return NotFound("User not found.");
+
+            // Verify the old password first
+            var isValid = _hasher.Verify(input.OldPassword, user.PasswordHash, user.PasswordSalt);
+            if (!isValid)
+                return BadRequest("Old password is incorrect.");
+
+            // Hash new password
+            _hasher.Create(input.NewPassword, out var newHash, out var newSalt);
+
+            user.PasswordHash = newHash;
+            user.PasswordSalt = newSalt;
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            // Send confirmation email
+            try
+            {
+                var subject = "HRMS Password Updated";
+                var message = $"Hello {user.FullName},\n\n" +
+                              $"Your password has been successfully updated.\n\n" +
+                              $"If this wasn’t you, please contact support immediately.\n\n" +
+                              $"Best regards,\nHRMS Team";
+
+                await _emailService.SendEmailAsync(user.Email!, subject, message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Email failed: {ex.Message}");
+            }
+
+            return Ok("Password updated successfully.");
+        }
+
 
 
         [HttpGet("{id:guid}")]
