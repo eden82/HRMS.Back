@@ -1818,6 +1818,12 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("varbinary(max)")
                         .HasColumnName("password_hash");
 
+                    b.Property<string>("PasswordResetOtp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PasswordResetOtpExpires")
+                        .HasColumnType("datetime2");
+
                     b.Property<byte[]>("PasswordSalt")
                         .IsRequired()
                         .HasColumnType("varbinary(max)")
