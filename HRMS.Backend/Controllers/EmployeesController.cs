@@ -100,7 +100,7 @@ namespace HRMS.Backend.Controllers
                 using (var stream = new FileStream(filePathPhoto, FileMode.Create))
                     await dto.Photo.CopyToAsync(stream);
 
-                photoUrl = $"/uploads/employees/{fileNamePhoto}";
+                photoUrl = $"C:/Users/Prodigy/Desktop/HRMS(Node)/hrms/public/DataBaseFiles/employees/{fileNamePhoto}";
             }
 
             // Resume
@@ -119,7 +119,7 @@ namespace HRMS.Backend.Controllers
                 using (var stream = new FileStream(filePathResume, FileMode.Create))
                     await dto.ResumeFile.CopyToAsync(stream);
 
-                resumeUrl = $"/uploads/employees/resumes/{fileNameResume}";
+                resumeUrl = $"C:/Users/Prodigy/Desktop/HRMS(Node)/hrms/public/DataBaseFiles/employees/resumes/{fileNameResume}";
             }
 
             // Contract
@@ -137,7 +137,7 @@ namespace HRMS.Backend.Controllers
                 using (var stream = new FileStream(filePathContract, FileMode.Create))
                     await dto.ContractFile.CopyToAsync(stream);
 
-                contractUrl = $"/uploads/employees/contracts/{fileNameContract}";
+                contractUrl = $"C:/Users/Prodigy/Desktop/HRMS(Node)/hrms/public/DataBaseFiles/employees/contracts/{fileNameContract}";
             }
 
 
@@ -160,7 +160,7 @@ namespace HRMS.Backend.Controllers
                 using (var stream = new FileStream(filePathCertification, FileMode.Create))
                     await dto.CertificationFile.CopyToAsync(stream);
 
-                certificationUrl = $"/uploads/employees/certifications/{fileNameCertification}";
+                certificationUrl = $"C:/Users/Prodigy/Desktop/HRMS(Node)/hrms/public/DataBaseFiles/employees/certifications/{fileNameCertification}";
             }
 
 
