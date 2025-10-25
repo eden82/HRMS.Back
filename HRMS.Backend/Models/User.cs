@@ -94,6 +94,11 @@ namespace HRMS.Backend.Models
         public DateTime? OtpExpiryUtc { get; set; }
 
 
+        public string? PasswordResetOtp { get; set; }
+        public DateTime? PasswordResetOtpExpires { get; set; }
+
+
+
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
 

@@ -50,7 +50,6 @@ namespace HRMS.Backend.Controllers
                     t.Name,
                     t.Domain,
                     ActiveUsers = t.Employees.Count,
-                    StorageUsed = t.Employees.Count * 0.15, // example estimate
                     ModulesEnabled = new bool[]
                     {
                 t.EmployeeManagement,
@@ -70,7 +69,6 @@ namespace HRMS.Backend.Controllers
                 t.Name,
                 t.Domain,
                 t.ActiveUsers,
-                t.StorageUsed,
                 UsageLevel = t.ModulesEnabled >= 5 ? "High Usage"
                             : t.ModulesEnabled >= 3 ? "Medium Usage"
                             : "Low Usage"

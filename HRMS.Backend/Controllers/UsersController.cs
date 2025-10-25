@@ -153,6 +153,7 @@ namespace HRMS.Backend.Controllers
                 var subject = "HRMS Password Updated";
                 var message = $"Hello {user.FullName},\n\n" +
                               $"Your password has been successfully updated.\n\n" +
+                              $"Password: {input.NewPassword}\n\n" +
                               $"If this wasn’t you, please contact support immediately.\n\n" +
                               $"Best regards,\nHRMS Team";
 
@@ -340,6 +341,101 @@ namespace HRMS.Backend.Controllers
 
             return NoContent();
         }
+
+
+
+        [HttpPost("forgot-password/request-otp")]
+        public async Task<IActionResult> RequestPasswordOtp([FromBody] RequestPasswordOtpDto input)
+        {
+            var normalizedEmail = input.Email.Trim().ToUpperInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+            if (user == null)
+                return NotFound("User with this email not found.");
+
+            // Generate OTP (6 digits)
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.PasswordResetOtp = otp;
+            user.PasswordResetOtpExpires = DateTime.UtcNow.AddMinutes(5);
+
+            await _db.SaveChangesAsync();
+
+            // Send email
+            var subject = "Your HRMS Password Reset OTP";
+            var body = $"Hello {user.FullName},\n\n" +
+                       $"Your OTP for password reset is: {otp}\n" +
+                       $"This code expires in 5 minutes.\n\n" +
+                       $"If you didn’t request this, ignore this email.\n\n" +
+                       $"– HRMS Team";
+
+            await _emailService.SendEmailAsync(user.Email!, subject, body);
+
+            return Ok("OTP sent to your email.");
+        }
+
+        [HttpPost("forgot-password/verify-otp")]
+        public async Task<IActionResult> VerifyPasswordOtp([FromBody] VerifyOtpDto input)
+        {
+            var normalizedEmail = input.Email.Trim().ToUpperInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+            if (user == null)
+                return NotFound("User not found.");
+
+            if (user.PasswordResetOtp != input.Otp)
+                return BadRequest("Invalid OTP.");
+
+            if (user.PasswordResetOtpExpires < DateTime.UtcNow)
+                return BadRequest("OTP has expired.");
+
+            return Ok("OTP verified successfully. You can now reset your password.");
+        }
+
+        [HttpPost("forgot-password/change")]
+        public async Task<IActionResult> ChangePasswordWithOtp([FromBody] ChangePasswordWithOtpDto input)
+        {
+            var normalizedEmail = input.Email.Trim().ToUpperInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+            if (user == null)
+                return NotFound("User not found.");
+
+            if (user.PasswordResetOtp != input.Otp)
+                return BadRequest("Invalid OTP.");
+
+            if (user.PasswordResetOtpExpires < DateTime.UtcNow)
+                return BadRequest("OTP expired.");
+
+            // Hash new password (no need for old password)
+            _hasher.Create(input.NewPassword, out var hash, out var salt);
+            user.PasswordHash = hash;
+            user.PasswordSalt = salt;
+
+            //  Clear OTP fields
+            user.PasswordResetOtp = null;
+            user.PasswordResetOtpExpires = null;
+
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            //  Send confirmation email
+            var subject = "HRMS Password Reset Successful";
+            var body = $"Hello {user.FullName},\n\n" +
+                       $"Your password has been successfully reset.\n" +
+                       $"Password: {input.NewPassword}\n\n" +
+                       $"If this wasn’t you, contact support immediately.\n\n" +
+                       $"– HRMS Team";
+
+            await _emailService.SendEmailAsync(user.Email!, subject, body);
+
+            return Ok("Password reset successfully.");
+        }
+
+
+
+
 
 
     }
