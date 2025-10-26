@@ -627,6 +627,67 @@ namespace HRMS.Backend.Controllers
         }
 
 
+        // GET: api/employees/without-department
+        [HttpGet("without-department")]
+        public async Task<IActionResult> GetEmployeesWithoutDepartment()
+        {
+            var employees = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.DepartmentId == null)
+                .Include(e => e.Organization)  // optional: include org name
+                .Select(e => new
+                {
+                    e.EmployeeID,
+                    e.TenantId,
+                    e.OrganizationId,
+                    OrganizationName = e.Organization != null ? e.Organization.Name : null,
+                    e.DepartmentId,
+                    DepartmentName = (string?)null, // none
+                    e.FirstName,
+                    e.LastName,
+                    e.Gender,
+                    e.Nationality,
+                    e.MaritalStatus,
+                    e.Address,
+                    e.DateOfBirth,
+                    e.Email,
+                    e.PhoneNumber,
+                    e.EmergencyContactName,
+                    e.EmergencyContactNumber,
+                    e.JobTitle,
+                    e.EmployeeEducationStatus,
+                    e.EmploymentType,
+                    e.PhotoUrl,
+                    e.HireDate,
+                    e.EmployeeCode,
+                    e.BenefitsEnrollment,
+                    e.ShiftDetails,
+                    e.Salary,
+                    e.Currency,
+                    e.PaymentMethod,
+                    e.BankAccountNumber,
+                    e.TaxIdenitificationNumber,
+                    e.PassportNumber,
+                    e.Resume,
+                    e.ContractFile,
+                    e.WorkLocation,
+                    e.Certification,
+                    e.CreatedAt,
+                    e.UpdatedAt,
+                    e.TerminatedDate
+                })
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToListAsync();
+
+            if (!employees.Any())
+                return NotFound("No employees found without a department.");
+
+            return Ok(employees);
+        }
+
+
+
         // Helper method for generating a unique employee code
         private async Task<string> GenerateUniqueEmployeeCodeAsync(Guid tenantId, string firstName, string lastName)
         {

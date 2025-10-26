@@ -162,7 +162,8 @@ namespace HRMS.Backend.Controllers
                 InitialEmployeeCount = dto.ParentDepartmentId == null || dto.ParentDepartmentId == Guid.Empty
                     ? dto.InitialEmployeeCount   // only for main departments
                     : null,
-                ParentDepartmentId = dto.ParentDepartmentId
+                ParentDepartmentId = dto.ParentDepartmentId,
+                Description = dto.Description
             };
 
             _context.Departments.Add(department);
@@ -701,5 +702,6 @@ namespace HRMS.Backend.Controllers
         public string? DepartmentCode { get; set; }
         public int? InitialEmployeeCount { get; set; }
         public Guid? ParentDepartmentId { get; set; }
+        public string? Description { get; set; }
     }
 }
