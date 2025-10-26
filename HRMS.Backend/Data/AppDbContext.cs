@@ -136,59 +136,60 @@ namespace HRMS.Backend.Data
 
 
             /* ===== DEPARTMENTS (GUID + composite) ===== */
-            // In AppDbContext.OnModelCreating(ModelBuilder model)
             model.Entity<Department>(e =>
             {
                 e.ToTable("departments");
                 e.HasKey(x => x.Id);
 
-                e.Property(x => x.OrganizationId).HasColumnName("organization_id");
-                e.Property(x => x.TenantId).HasColumnName("tenant_id");
+                // Properties
+                e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired(false);
+                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
                 e.Property(x => x.DepartmentName).HasColumnName("name").IsRequired().HasMaxLength(200);
                 e.Property(x => x.Description).HasColumnName("description");
-                e.Property(x => x.DepartmentCode).HasColumnName("department_code").HasMaxLength(50);
-                e.Property(x => x.ParentDepartmentId).HasColumnName("parent_department_id");
+                e.Property(x => x.DepartmentCode).HasColumnName("department_code").HasMaxLength(50).IsRequired(false);
+                e.Property(x => x.ParentDepartmentId).HasColumnName("parent_department_id").IsRequired(false);
+                e.Property(x => x.DepartmentHeadId).HasColumnName("department_head_id").IsRequired(false);
 
-                e.Property(x => x.DepartmentHeadId).HasColumnName("department_head_id");
-
-                // Tenant
+                // Tenant relationship
                 e.HasOne(x => x.Tenant)
                  .WithMany(t => t.Departments)
                  .HasForeignKey(x => x.TenantId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Organization (composite safety)
+                // Organization relationship (optional)
                 e.HasOne(x => x.Organization)
                  .WithMany(o => o.Departments)
-                 .HasForeignKey(x => new { x.OrganizationId, x.TenantId })
-                 .HasPrincipalKey(o => new { o.Id, o.TenantId })
-                 .OnDelete(DeleteBehavior.Restrict);
+                 .HasForeignKey(x => x.OrganizationId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .IsRequired(false);
 
-                // Alternate key to support composite refs (parent & employee FKs)
-                e.HasAlternateKey(x => new { x.Id, x.OrganizationId, x.TenantId })
-                 .HasName("AK_departments_id_org_tenant");
+                // Alternate key to support composite references
+                e.HasAlternateKey(x => new { x.Id, x.TenantId })
+                 .HasName("AK_departments_id_tenant");
 
-                // Parent department (within same org/tenant)
+                // Parent department (optional)
                 e.HasOne(x => x.ParentDepartment)
                  .WithMany(p => p.ChildDepartments)
-                 .HasForeignKey(x => new { x.ParentDepartmentId, x.OrganizationId, x.TenantId })
-                 .HasPrincipalKey(p => new { p.Id, p.OrganizationId, p.TenantId })
-                 .OnDelete(DeleteBehavior.NoAction);
+                 .HasForeignKey(x => new { x.ParentDepartmentId, x.TenantId })
+                 .HasPrincipalKey(p => new { p.Id, p.TenantId })
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .IsRequired(false);
 
-                // Department head must be an employee in same tenant (and typically same org)
+                // Department head (optional, must be employee in same tenant)
                 e.HasOne(x => x.DepartmentHead)
-                 .WithMany() // not adding back-collection
+                 .WithMany()
                  .HasForeignKey(x => new { x.DepartmentHeadId, x.TenantId })
                  .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
                  .OnDelete(DeleteBehavior.Restrict)
-                 .IsRequired(false); 
-                 
-                // Uniques
+                 .IsRequired(false);
+
+                // Unique indexes
                 e.HasIndex(x => new { x.OrganizationId, x.DepartmentName }).IsUnique();
                 e.HasIndex(x => new { x.OrganizationId, x.DepartmentCode })
                  .IsUnique()
                  .HasFilter("[department_code] IS NOT NULL");
             });
+
 
 
             /* ===== EMPLOYEES (GUID + composite) ===== */
@@ -321,16 +322,21 @@ namespace HRMS.Backend.Data
                 // Organization (tenant-safe composite)
                 e.HasOne(x => x.Organization)
                  .WithMany(o => o.Employees)
-                 .HasForeignKey(x => new { x.OrganizationId, x.TenantId })
-                 .HasPrincipalKey(o => new { o.Id, o.TenantId })
-                 .OnDelete(DeleteBehavior.Restrict);
+                 .HasForeignKey(x => x.OrganizationId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .IsRequired(false);
 
-                // Department (tenant-safe composite) — optional now
+
+
+
+                // Department (tenant-safe composite) — optional
                 e.HasOne(x => x.Department)
                  .WithMany(d => d.Employees)
-                 .HasForeignKey(x => new { x.DepartmentId, x.OrganizationId, x.TenantId })
-                 .HasPrincipalKey(d => new { d.Id, d.OrganizationId, d.TenantId })
-                 .OnDelete(DeleteBehavior.Restrict);
+                 .HasForeignKey(x => new { x.DepartmentId, x.TenantId })   // remove OrganizationId
+                 .HasPrincipalKey(d => new { d.Id, d.TenantId })            // ✅ simpler reference
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .IsRequired(false);
+
 
 
                 // Attendance (composite FK)

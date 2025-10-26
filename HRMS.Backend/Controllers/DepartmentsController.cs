@@ -81,55 +81,45 @@ namespace HRMS.Backend.Controllers
 
         // POST: api/departments
         [HttpPost]
-
         public async Task<ActionResult<DepartmentDto>> CreateDepartment(DepartmentCreateUpdateDto dto)
         {
             // Required fields
             if (string.IsNullOrWhiteSpace(dto.DepartmentName))
                 ModelState.AddModelError(nameof(dto.DepartmentName), "Department name is required.");
 
-            // Load org (derive tenant)
-            var org = await _context.Organizations.AsNoTracking()
-                          .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId);
-            if (org == null)
-                ModelState.AddModelError(nameof(dto.OrganizationId), "Organization not found.");
+            // Load tenant (organization can be null)
+            var tenant = await _context.Tenants.AsNoTracking()
+                           .FirstOrDefaultAsync(t => t.Id == dto.TenantId);
 
-            // Parent validation (same org)
+            if (tenant == null)
+                ModelState.AddModelError(nameof(dto.TenantId), "Tenant not found.");
+
+            // Parent validation (same tenant)
             if (dto.ParentDepartmentId.HasValue && dto.ParentDepartmentId.Value != Guid.Empty)
             {
                 var parent = await _context.Departments.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == dto.ParentDepartmentId.Value);
+
                 if (parent == null)
                     ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent department not found.");
-                else if (org != null && parent.OrganizationId != org.Id)
-                    ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent must be in the same organization.");
+                else if (tenant != null && parent.TenantId != tenant.Id)
+                    ModelState.AddModelError(nameof(dto.ParentDepartmentId), "Parent must be in the same tenant.");
             }
 
-            // Head is OPTIONAL now — validate only if provided
-            if (dto.DepartmentHeadId.HasValue && org != null)
+            // Head is OPTIONAL — validate only if provided
+            if (dto.DepartmentHeadId.HasValue && tenant != null)
             {
                 var head = await _context.Employees.AsNoTracking()
                     .FirstOrDefaultAsync(e => e.EmployeeID == dto.DepartmentHeadId.Value);
+
                 if (head == null)
                 {
                     ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head employee not found.");
                 }
                 else
                 {
-                    if (head.TenantId != org.TenantId)
+                    if (head.TenantId != tenant.Id)
                         ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must belong to the same tenant.");
-                    if (head.OrganizationId != org.Id)
-                        ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must belong to the same organization.");
-
-                    // Optional: require certain roles for head
-                    // var hasRequiredRole = await _context.EmployeeRoles
-                    //     .Include(er => er.Role)
-                    //     .AnyAsync(er =>
-                    //         er.EmployeeId == head.EmployeeID &&
-                    //         er.TenantId == head.TenantId &&
-                    //         (er.Role.Name == "Manager" || er.Role.Name == "HRAdmin"));
-                    // if (!hasRequiredRole)
-                    //     ModelState.AddModelError(nameof(dto.DepartmentHeadId), "Department head must have either the 'Manager' or 'HRAdmin' role.");
                 }
             }
 
@@ -140,27 +130,27 @@ namespace HRMS.Backend.Controllers
             string? deptCode = dto.DepartmentCode;
             if (string.IsNullOrWhiteSpace(deptCode))
             {
-                deptCode = await GenerateUniqueDeptCodeAsync(org!.Id, dto.DepartmentName);
+                deptCode = await GenerateUniqueDeptCodeAsync(dto.TenantId, dto.DepartmentName); // use tenantId instead of org.Id
             }
             else
             {
                 deptCode = deptCode.Trim().ToUpperInvariant();
                 var exists = await _context.Departments
-                    .AnyAsync(d => d.OrganizationId == org!.Id && d.DepartmentCode == deptCode);
+                    .AnyAsync(d => d.TenantId == dto.TenantId && d.DepartmentCode == deptCode);
                 if (exists)
-                    return Conflict(new { message = $"Department code '{deptCode}' already exists in this organization." });
+                    return Conflict(new { message = $"Department code '{deptCode}' already exists in this tenant." });
             }
 
             var department = new Department
             {
                 Id = Guid.NewGuid(),
-                OrganizationId = org!.Id,
-                TenantId = org.TenantId,
+                OrganizationId = null, // org nullable
+                TenantId = dto.TenantId,
                 DepartmentName = dto.DepartmentName.Trim(),
                 DepartmentCode = deptCode,
-                DepartmentHeadId = dto.DepartmentHeadId, // may be null
+                DepartmentHeadId = dto.DepartmentHeadId,
                 InitialEmployeeCount = dto.ParentDepartmentId == null || dto.ParentDepartmentId == Guid.Empty
-                    ? dto.InitialEmployeeCount   // only for main departments
+                    ? dto.InitialEmployeeCount
                     : null,
                 ParentDepartmentId = dto.ParentDepartmentId,
                 Description = dto.Description
@@ -184,29 +174,27 @@ namespace HRMS.Backend.Controllers
                     : string.Empty,
                 DepartmentCode = department.DepartmentCode,
                 InitialEmployeeCount = dto.ParentDepartmentId == null || dto.ParentDepartmentId == Guid.Empty
-                    ? dto.InitialEmployeeCount   // only for main departments
+                    ? dto.InitialEmployeeCount
                     : null,
                 ParentDepartmentId = department.ParentDepartmentId
             };
 
-            //RESPONSE BASED ON MAIN OR SUB-DEPARTMENT
-
+            // RESPONSE BASED ON MAIN OR SUB-DEPARTMENT
             if (dto.ParentDepartmentId == null || dto.ParentDepartmentId == Guid.Empty)
             {
-
                 return Ok(new
                 {
                     message = "Main department created successfully",
                     Id = department.Id
                 });
-
             }
             else
             {
                 return Ok(new { message = "Sub-department created successfully" });
             }
         }
-        
+
+
 
         // PUT: api/departments/{id}
         [HttpPut("{id:guid}")]
@@ -684,7 +672,7 @@ namespace HRMS.Backend.Controllers
     public sealed class DepartmentDto
     {
         public Guid Id { get; set; }
-        public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid TenantId { get; set; }
         public string DepartmentName { get; set; } = null!;
         public Guid? DepartmentHeadId { get; set; } // now optional
@@ -696,7 +684,8 @@ namespace HRMS.Backend.Controllers
 
     public sealed class DepartmentCreateUpdateDto
     {
-        public Guid OrganizationId { get; set; }
+        public Guid TenantId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public string DepartmentName { get; set; } = null!;
         public Guid? DepartmentHeadId { get; set; } // optional
         public string? DepartmentCode { get; set; }

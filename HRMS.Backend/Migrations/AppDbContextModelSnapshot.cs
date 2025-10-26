@@ -342,7 +342,7 @@ namespace HRMS.Backend.Migrations
                     b.Property<int?>("InitialEmployeeCount")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("organization_id");
 
@@ -356,8 +356,8 @@ namespace HRMS.Backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("Id", "OrganizationId", "TenantId")
-                        .HasName("AK_departments_id_org_tenant");
+                    b.HasAlternateKey("Id", "TenantId")
+                        .HasName("AK_departments_id_tenant");
 
                     b.HasIndex("TenantId");
 
@@ -368,11 +368,10 @@ namespace HRMS.Backend.Migrations
                         .HasFilter("[department_code] IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "DepartmentName")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[organization_id] IS NOT NULL");
 
-                    b.HasIndex("OrganizationId", "TenantId");
-
-                    b.HasIndex("ParentDepartmentId", "OrganizationId", "TenantId");
+                    b.HasIndex("ParentDepartmentId", "TenantId");
 
                     b.ToTable("departments", (string)null);
                 });
@@ -571,6 +570,8 @@ namespace HRMS.Backend.Migrations
 
                     b.HasAlternateKey("EmployeeID", "TenantId")
                         .HasName("AK_employees_id_tenant");
+
+                    b.HasIndex("DepartmentId", "TenantId");
 
                     b.HasIndex("OrganizationId", "TenantId");
 
@@ -2014,6 +2015,11 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Department", b =>
                 {
+                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                        .WithMany("Departments")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany("Departments")
                         .HasForeignKey("TenantId")
@@ -2026,18 +2032,11 @@ namespace HRMS.Backend.Migrations
                         .HasPrincipalKey("EmployeeID", "TenantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
-                        .WithMany("Departments")
-                        .HasForeignKey("OrganizationId", "TenantId")
-                        .HasPrincipalKey("Id", "TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("HRMS.Backend.Models.Department", "ParentDepartment")
                         .WithMany("ChildDepartments")
-                        .HasForeignKey("ParentDepartmentId", "OrganizationId", "TenantId")
-                        .HasPrincipalKey("Id", "OrganizationId", "TenantId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .HasForeignKey("ParentDepartmentId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("DepartmentHead");
 
@@ -2050,22 +2049,21 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Employee", b =>
                 {
+                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                        .WithMany("Employees")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany("Employees")
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
-                        .WithMany("Employees")
-                        .HasForeignKey("OrganizationId", "TenantId")
-                        .HasPrincipalKey("Id", "TenantId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("HRMS.Backend.Models.Department", "Department")
                         .WithMany("Employees")
-                        .HasForeignKey("DepartmentId", "OrganizationId", "TenantId")
-                        .HasPrincipalKey("Id", "OrganizationId", "TenantId")
+                        .HasForeignKey("DepartmentId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Department");
