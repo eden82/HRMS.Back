@@ -56,7 +56,6 @@ namespace HRMS.Backend.Controllers
             });
 
         }
-
         // GET: /api/organizations
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll()
@@ -76,11 +75,33 @@ namespace HRMS.Backend.Controllers
                     Description = org.Description ?? string.Empty,
                     IpRestrictions = org.IpRestrictions
                 })
-
                 .ToListAsync();
 
             return Ok(orgs);
+        }
+        // GET: /api/organizations
+        [HttpGet("by-tenant/{tenantId:guid}")]
+        public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetByTenantId(Guid tenantId)
+        {
+            var orgs = await _context.Organizations
+                .AsNoTracking()
+                .Where(org => org.TenantId == tenantId) // filter by tenant
+                .Select(org => new OrganizationDto
+                {
+                    Id = org.Id,
+                    TenantId = org.TenantId,
+                    Name = org.Name ?? string.Empty,
+                    Domain = org.Domain ?? string.Empty,
+                    Industry = org.Industry ?? string.Empty,
+                    Location = org.Location ?? string.Empty,
+                    LogoUrl = org.LogoUrl ?? string.Empty,
+                    OrgCode = org.OrgCode ?? string.Empty,
+                    Description = org.Description ?? string.Empty,
+                    IpRestrictions = org.IpRestrictions
+                })
+                .ToListAsync();
 
+            return Ok(orgs);
         }
 
 
