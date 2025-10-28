@@ -13,8 +13,8 @@ namespace HRMS.Backend.Models
         public Guid Id { get; set; }
 
         [Column("organization_id")]
-        public Guid OrganizationId { get; set; }
-        public Organization Organization { get; set; } = null!;
+        public Guid? OrganizationId { get; set; }
+        public Organization? Organization { get; set; } = null!;
 
         [Column("tenant_id")]
         public Guid TenantId { get; set; }
