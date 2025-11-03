@@ -627,6 +627,53 @@ namespace HRMS.Backend.Controllers
         }
 
 
+        //Get employee by org and tenant ID
+        [HttpGet("by-tenant-org/{tenantId}/{organizationId?}")]
+        public async Task<ActionResult<IEnumerable<EmployeeListDto>>> GetByTenantAndOrganization(string tenantId, string? organizationId)
+        {
+            if (!Guid.TryParse(tenantId, out var tenantGuid))
+                return BadRequest("Invalid tenantId format.");
+
+            Guid? orgGuid = null;
+            if (!string.IsNullOrEmpty(organizationId))
+            {
+                if (!Guid.TryParse(organizationId, out var parsedOrg))
+                    return BadRequest("Invalid organizationId format.");
+                orgGuid = parsedOrg;
+            }
+
+            // Base query: employees by tenant
+            var query = _context.Employees
+                .Where(e => e.TenantId == tenantGuid);
+
+            // Optional: filter by organization if provided
+            if (orgGuid != null)
+                query = query.Where(e => e.OrganizationId == orgGuid);
+            else
+                query = query.Where(e => e.OrganizationId == null); // only tenant-level employees
+
+            var employees = await query
+                .Select(e => new EmployeeListDto
+                {
+                    EmployeeID = e.EmployeeID,
+                    TenantId = e.TenantId,
+                    OrganizationId = e.OrganizationId,
+                    DepartmentId = e.DepartmentId,
+                    FirstName = e.FirstName,
+                    LastName = e.LastName,
+                    Email = e.Email,
+                    EmployeeCode = e.EmployeeCode,
+                    JobTitle = e.JobTitle,
+                    OrganizationName = e.Organization != null ? e.Organization.Name : null,
+                    DepartmentName = e.Department != null ? e.Department.DepartmentName : null
+                })
+                .ToListAsync();
+
+            return Ok(employees);
+        }
+
+
+
         // GET: api/employees/without-department
         [HttpGet("without-department")]
         public async Task<IActionResult> GetEmployeesWithoutDepartment()

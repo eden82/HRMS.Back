@@ -11,13 +11,21 @@ namespace HRMS.Backend.Models
         [Column("id")]
         public Guid Id { get; set; }
 
-        // FK -> organizations(id)
-        [Column("organization_id")]
-        public Guid OrganizationId { get; set; }
-        public Organization Organization { get; set; } = null!;
+        [Required]
+        [Column("tenant_id")]
+        public Guid TenantId { get; set; }
+        public Tenant Tenant { get; set; } = null!;
+
+
+        [Column("Organization_id")]
+        public Guid? OrganizationId { get; set; }
+        public Organization? Organization { get; set; } = null!;
+
 
         [Column("name"), Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
+
+
 
         [Column("is_paid")]
         public bool IsPaid { get; set; }

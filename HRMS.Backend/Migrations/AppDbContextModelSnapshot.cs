@@ -245,6 +245,10 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("location");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("Organization_id");
+
                     b.Property<string>("ShiftName")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("shift_name");
@@ -262,7 +266,13 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("tenant_id");
 
+                    b.Property<double?>("TotalHours")
+                        .HasColumnType("float")
+                        .HasColumnName("total_hours");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("TenantId", "AttendanceDate")
                         .HasDatabaseName("IX_attendance_tenant_date");
@@ -823,6 +833,10 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("manager_comment");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("Organization_id");
+
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("reason");
@@ -846,6 +860,8 @@ namespace HRMS.Backend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("ApprovedBy", "TenantId");
 
@@ -886,17 +902,23 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("name");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier")
-                        .HasColumnName("organization_id");
+                        .HasColumnName("Organization_id");
 
                     b.Property<bool>("RequiresApproval")
                         .HasColumnType("bit")
                         .HasColumnName("requires_approval");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("tenant_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("LeaveTypes");
                 });
@@ -1976,6 +1998,10 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Attendance", b =>
                 {
+                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany("Attendances")
                         .HasForeignKey("TenantId")
@@ -1990,6 +2016,8 @@ namespace HRMS.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+
+                    b.Navigation("Organization");
 
                     b.Navigation("Tenant");
                 });
@@ -2165,6 +2193,10 @@ namespace HRMS.Backend.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -2190,6 +2222,8 @@ namespace HRMS.Backend.Migrations
 
                     b.Navigation("LeaveType");
 
+                    b.Navigation("Organization");
+
                     b.Navigation("Tenant");
                 });
 
@@ -2197,11 +2231,17 @@ namespace HRMS.Backend.Migrations
                 {
                     b.HasOne("HRMS.Backend.Models.Organization", "Organization")
                         .WithMany("LeaveTypes")
-                        .HasForeignKey("OrganizationId")
+                        .HasForeignKey("OrganizationId");
+
+                    b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Organization");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.OrgSetting", b =>

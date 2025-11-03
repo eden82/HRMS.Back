@@ -6,6 +6,7 @@ using HRMS.Backend.Models;
 using HRMS.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace HRMS.Backend.Controllers
 {
@@ -164,6 +165,52 @@ namespace HRMS.Backend.Controllers
                 email = user.Email
             });
         }
+
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshRequest input)
+        {
+            if (string.IsNullOrWhiteSpace(input.RefreshToken))
+                return BadRequest("Refresh token is required.");
+
+            if (input.Audience != "HRMSUsers")
+                return Unauthorized("Invalid audience.");
+
+            var principal = _jwt.GetPrincipalFromExpiredToken(input.RefreshToken);
+            if (principal == null)
+                return Unauthorized("Invalid refresh token.");
+
+            var userId = principal.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Invalid token claims.");
+
+            var user = await _db.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+
+            if (user == null || !user.IsActive)
+                return Unauthorized("User not found or inactive.");
+
+            // Generate new tokens
+            var tokenResult = await _jwt.CreateAccessTokenAsync(user);
+            string newAccessToken = tokenResult.Jwt;
+            DateTimeOffset accessExp = tokenResult.ExpiresAt;
+
+            var (newRefreshToken, refreshExp) = _jwt.CreateRefreshToken();
+
+            return Ok(new
+            {
+                accessToken = newAccessToken,
+                refreshToken = newRefreshToken,
+                expiresAt = accessExp,
+                refreshExpiresAt = refreshExp
+            });
+        }
+
+        // Request model
+        public record RefreshRequest(string RefreshToken, string Audience);
+
 
 
         [HttpPost("email-login")]

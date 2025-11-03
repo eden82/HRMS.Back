@@ -9,6 +9,7 @@ namespace HRMS.Backend.DTOs
         public Guid Id { get; set; }
         public Guid EmployeeId { get; set; }
         public Guid TenantId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid LeaveTypeId { get; set; }
         public Guid? ApprovedBy { get; set; }
 
@@ -24,6 +25,7 @@ namespace HRMS.Backend.DTOs
     public sealed class CreateLeaveRequest
     {
         [Required] public Guid EmployeeId { get; set; }
+        public Guid? OrganizationId { get; set; }
         [Required] public Guid LeaveTypeId { get; set; }
         [Required] public DateTime StartDate { get; set; }
         [Required] public DateTime EndDate { get; set; }
@@ -37,9 +39,10 @@ namespace HRMS.Backend.DTOs
     public sealed class UpdateLeaveRequest
     {
         [Required] public Guid LeaveTypeId { get; set; }
+        public Guid? OrganizationId { get; set; }
         [Required] public DateTime StartDate { get; set; }
         [Required] public DateTime EndDate { get; set; }
-        
+
         public string? Reason { get; set; }
         public string? Status { get; set; } // optional; validate/normalize in controller if you use fixed values
         public DateTime? UpdatedAt { get; set; }

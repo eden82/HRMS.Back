@@ -51,6 +51,16 @@ namespace HRMS.Backend.Models
         [Column("exception_note")]
         public string? ExceptionNote { get; set; }
 
+
+        [Column("Organization_id")]
+        public Guid? OrganizationId { get; set; }
+
+
+        [Column("total_hours")]
+        public double? TotalHours { get; set; }
+
+        public Organization? Organization { get; set; } = null!;
+
         // Navs
         public Employee Employee { get; set; } = null!;
         public Tenant Tenant { get; set; } = null!;

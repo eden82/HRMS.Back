@@ -18,6 +18,10 @@ namespace HRMS.Backend.Models
         public Guid TenantId { get; set; }            // CHANGED: int -> Guid
         public Tenant Tenant { get; set; } = null!;
 
+        [Column("Organization_id")]
+        public Guid? OrganizationId { get; set; }
+        public Organization? Organization { get; set; } = null!;
+
         [Column("leave_type_id")]
         public Guid LeaveTypeId { get; set; }          // keep int if LeaveType.Id is still int
         public LeaveType LeaveType { get; set; } = null!;

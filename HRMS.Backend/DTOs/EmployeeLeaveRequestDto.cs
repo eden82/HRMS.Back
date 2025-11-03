@@ -5,6 +5,8 @@ namespace HRMS.Backend.DTOs
     public class EmployeeLeaveRequestDto
     {
         public Guid EmployeeId { get; set; }     // matches Leave.EmployeeId
+        public Guid UserId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public Guid LeaveTypeId { get; set; }    // matches Leave.LeaveTypeId
         public Guid TenantId { get; set; }       // matches Leave.TenantId
         public DateTime StartDate { get; set; }
