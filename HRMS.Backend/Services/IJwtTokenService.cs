@@ -10,5 +10,7 @@ namespace HRMS.Backend.Services
         Task<(string Jwt, DateTimeOffset ExpiresAt, string Jti)> CreateAccessTokenAsync(User user);
         (string RefreshToken, DateTimeOffset ExpiresAt) CreateRefreshToken();
         ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
+        Task<(string Jwt, DateTimeOffset ExpiresAt, string Jti)> CreateAccessTokenForApplicantAsync(ApplicantRegistration applicant);
+
     }
 }

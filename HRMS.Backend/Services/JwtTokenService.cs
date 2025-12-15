@@ -107,5 +107,45 @@ namespace HRMS.Backend.Services
                 return null;
             }
         }
+        public Task<(string Jwt, DateTimeOffset ExpiresAt, string Jti)> CreateAccessTokenForApplicantAsync(ApplicantRegistration applicant)
+        {
+            // Read JWT settings from configuration
+            var key = _config["JwtSettings:Key"] ?? throw new InvalidOperationException("JwtSettings:Key missing");
+            var iss = _config["JwtSettings:Issuer"];
+            var aud = _config["JwtSettings:Audience"];
+            var mins = int.TryParse(_config["JwtSettings:AccessTokenMinutes"], out var m) ? m : 60;
+
+            var jti = Guid.NewGuid().ToString("N");
+            var now = DateTimeOffset.UtcNow;
+            var exp = now.AddMinutes(mins);
+
+            // Build claims (applicant-specific)
+            var claims = new[]
+            {
+    new Claim(JwtRegisteredClaimNames.Sub, applicant.Email),
+    new Claim(JwtRegisteredClaimNames.Jti, jti),
+    new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+    new Claim("applicant_email", applicant.Email),
+    new Claim("applicant_fullname", applicant.Fullname)
+};
+
+            var credentials = new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                SecurityAlgorithms.HmacSha256
+            );
+
+            var token = new JwtSecurityToken(
+                issuer: iss,
+                audience: aud,
+                claims: claims,
+                notBefore: now.UtcDateTime,
+                expires: exp.UtcDateTime,
+                signingCredentials: credentials
+            );
+
+            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+            return Task.FromResult((jwt, exp, jti));
+        }
+
     }
 }

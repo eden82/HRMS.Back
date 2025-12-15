@@ -130,5 +130,13 @@ namespace HRMS.Backend.DTOs
         public string? Email { get; set; }
         public string? EmployeeCode { get; set; }
         public string? JobTitle { get; set; }
+
     }
+
+    public class UpdateEmployeeDepartmentDto
+    {
+        public Guid EmployeeId { get; set; }
+        public string DepartmentName { get; set; } = string.Empty;
+    }
+
 }

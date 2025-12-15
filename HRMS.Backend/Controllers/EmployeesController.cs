@@ -495,6 +495,100 @@ namespace HRMS.Backend.Controllers
             });
         }
 
+
+        // PUT: api/employees/update-department
+        [HttpPut("update-department")]
+        [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
+        public async Task<IActionResult> UpdateEmployeeDepartment([FromBody] UpdateEmployeeDepartmentDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Request body is required.");
+
+            if (dto.EmployeeId == Guid.Empty)
+                return BadRequest("EmployeeId is required.");
+
+            if (string.IsNullOrWhiteSpace(dto.DepartmentName))
+                return BadRequest("DepartmentName is required.");
+
+            // Find the employee
+            var employee = await _context.Employees
+                .Include(e => e.Organization)
+                .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId);
+
+            if (employee == null)
+                return NotFound($"Employee with ID {dto.EmployeeId} not found.");
+
+            // Find the department (by name, case-insensitive)
+            var department = await _context.Departments
+                .Include(d => d.ParentDepartment)
+                .FirstOrDefaultAsync(d => d.DepartmentName.ToLower() == dto.DepartmentName.ToLower());
+
+            if (department == null)
+                return NotFound($"Department '{dto.DepartmentName}' not found.");
+
+            //--------------------------------------------
+            // VALIDATION 1: if department is a subdepartment
+            //--------------------------------------------
+            if (department.ParentDepartmentId == null)
+            {
+                return BadRequest($"Cannot assign");
+            }
+
+            //--------------------------------------------
+            // VALIDATION 2: department has only tenant (org = null)
+            //--------------------------------------------
+            if (department.OrganizationId == null)
+            {
+                // Must match tenant
+                if (employee.TenantId != department.TenantId)
+                {
+                    return BadRequest($"Cannot assign: Employee tenant '{employee.TenantId}' does not match department tenant '{department.TenantId}'.");
+                }
+
+                // Employee must not belong to an organization
+                if (employee.OrganizationId != null)
+                {
+                    return BadRequest($"Cannot assign: Department belongs only to tenant '{department.TenantId}', but employee belongs to an organization '{employee.OrganizationId}'.");
+                }
+            }
+
+            //--------------------------------------------
+            // VALIDATION 3: department has organization
+            //--------------------------------------------
+            else
+            {
+                if (employee.OrganizationId != department.OrganizationId)
+                {
+                    return BadRequest($"Cannot assign: Employee organization '{employee.OrganizationId}' does not match department organization '{department.OrganizationId}'.");
+                }
+
+                // also ensure they share same tenant
+                if (employee.TenantId != department.TenantId)
+                {
+                    return BadRequest($"Cannot assign: Employee tenant '{employee.TenantId}' does not match department tenant '{department.TenantId}'.");
+                }
+            }
+
+            //--------------------------------------------
+            // All validations passed  Update department
+            //--------------------------------------------
+            employee.DepartmentId = department.Id;
+            employee.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = $"Employee '{employee.FirstName} {employee.LastName}' successfully moved to department '{department.DepartmentName}'.",
+                employee.EmployeeID,
+                Department = department.DepartmentName
+            });
+        }
+
+
+
+
+
         //get employee by employee code
         [HttpGet("by-employee-code/{tenantId}/{employeeCode}")]
         public async Task<ActionResult<EmployeeDetailDto>> GetByEmployeeCode(Guid tenantId, string employeeCode)
@@ -674,22 +768,30 @@ namespace HRMS.Backend.Controllers
 
 
 
-        // GET: api/employees/without-department
-        [HttpGet("without-department")]
-        public async Task<IActionResult> GetEmployeesWithoutDepartment()
+        // GET: api/employees/without-department/{tenantId}
+        [HttpGet("without-department/{tenantId:guid}")]
+        public async Task<IActionResult> GetEmployeesWithoutDepartment(Guid tenantId)
         {
+            if (tenantId == Guid.Empty)
+                return BadRequest("TenantId is required.");
+
             var employees = await _context.Employees
                 .AsNoTracking()
-                .Where(e => e.DepartmentId == null)
-                .Include(e => e.Organization)  // optional: include org name
+                .Where(e =>
+                    e.TenantId == tenantId &&
+                    e.OrganizationId == null &&
+                    e.DepartmentId == null)
+                .Include(e => e.Tenant) // Include tenant info for name
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
                 .Select(e => new
                 {
                     e.EmployeeID,
                     e.TenantId,
+                    TenantName = e.Tenant != null ? e.Tenant.Name : null, //  only tenant name
                     e.OrganizationId,
-                    OrganizationName = e.Organization != null ? e.Organization.Name : null,
                     e.DepartmentId,
-                    DepartmentName = (string?)null, // none
+                    DepartmentName = (string?)null, // always null since no department
                     e.FirstName,
                     e.LastName,
                     e.Gender,
@@ -723,15 +825,14 @@ namespace HRMS.Backend.Controllers
                     e.UpdatedAt,
                     e.TerminatedDate
                 })
-                .OrderBy(e => e.LastName)
-                .ThenBy(e => e.FirstName)
                 .ToListAsync();
 
             if (!employees.Any())
-                return NotFound("No employees found without a department.");
+                return NotFound("No employees found without a department for this tenant.");
 
             return Ok(employees);
         }
+
 
 
         // GET: api/employees/by-main-department/{mainDepartmentId}
@@ -794,7 +895,8 @@ namespace HRMS.Backend.Controllers
                     e.Certification,
                     e.CreatedAt,
                     e.UpdatedAt,
-                    e.TerminatedDate
+                    e.TerminatedDate,
+                    mainDepartment.ParentDepartmentId
                 })
                 .OrderBy(e => e.LastName)
                 .ThenBy(e => e.FirstName)
@@ -806,6 +908,48 @@ namespace HRMS.Backend.Controllers
             return Ok(employees);
         }
 
+
+        // DELETE: api/employees/{id}/department
+        [HttpDelete("{id:guid}/department")]
+        public async Task<IActionResult> RemoveEmployeeDepartment(Guid id)
+        {
+            var employee = await _context.Employees.FindAsync(id);
+            if (employee == null)
+                return NotFound("Employee not found.");
+
+            // Remove the department assignment
+            employee.DepartmentId = null;
+
+            _context.Employees.Update(employee);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Department removed successfully." });
+        }
+
+
+
+        [HttpPut("{id:guid}/department")]
+        public async Task<IActionResult> UpdateEmployeeDepartment(Guid id, [FromBody] UpdateDepartmentDto dto)
+        {
+            if (dto == null || dto.DepartmentId == null)
+                return BadRequest("Invalid department ID.");
+
+            var employee = await _context.Employees.FindAsync(id);
+            if (employee == null)
+                return NotFound("Employee not found.");
+
+            employee.DepartmentId = dto.DepartmentId;
+
+            _context.Employees.Update(employee);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Department updated successfully." });
+        }
+
+        public class UpdateDepartmentDto
+        {
+            public Guid DepartmentId { get; set; }
+        }
 
 
 

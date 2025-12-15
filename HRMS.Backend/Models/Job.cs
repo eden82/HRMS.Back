@@ -22,6 +22,11 @@ namespace HRMS.Backend.Models
         public Guid TenantID { get; set; }
         public Tenant Tenant { get; set; } = null!;
 
+
+        [Column("organization_id")]
+        public Guid? OrganizationId { get; set; }
+        public Organization? Organization { get; set; } = null!;
+
         [MaxLength(255, ErrorMessage = "Location cannot exceed 255 characters")]
         public string Location { get; set; } = string.Empty;
 
@@ -44,9 +49,6 @@ namespace HRMS.Backend.Models
 
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
-
-        [Column("closing_date")]
-        public DateTime? ClosingDate { get; set; }
 
 
 

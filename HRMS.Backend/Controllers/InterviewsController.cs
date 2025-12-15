@@ -19,71 +19,96 @@ namespace HRMS.Backend.Controllers
             _context = context;
         }
 
-        //  1. Schedule (Create) Interview
+        // Schedule (Create) Interview
         [HttpPost]
-        public async Task<IActionResult> ScheduleInterview([FromBody] InterviewDTO dto)
+        public async Task<IActionResult> CreateInterview([FromBody] InterviewCreateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            //  VALIDATE ApplicantEmail + JobTitle
+            if (string.IsNullOrWhiteSpace(dto.ApplicantEmail) || string.IsNullOrWhiteSpace(dto.JobTitle))
+                return BadRequest(new { message = "ApplicantEmail and JobTitle are required." });
 
-            if (dto.ShortlistId == Guid.Empty)
-                return BadRequest(new { message = "ShortlistId is required." });
 
-            if (string.IsNullOrWhiteSpace(dto.Type))
-                return BadRequest(new { message = "Interview Type is required." });
+            //  Find Shortlist using applicant email + job title
+            var shortlist = await _context.Shortlists
+                .Include(s => s.Job)
+                .Where(s => s.Email == dto.ApplicantEmail && s.Job.JobTitle == dto.JobTitle)
+                .FirstOrDefaultAsync();
 
-            if (dto.ScheduledDate.HasValue && dto.ScheduledDate.Value < DateTime.UtcNow)
+
+
+            if (shortlist == null)
+                return NotFound(new { message = "No shortlist found for the given Email and Job Title." });
+
+            Guid shortlistId = shortlist.ShortlistID;
+
+            var existingInterview = await _context.Interviews
+               .FirstOrDefaultAsync(i => i.ShortlistId == shortlistId);
+
+            if (existingInterview != null)
+            {
+                return BadRequest(new { message = "Cannot schedule the same applicant twice." });
+            }
+
+            //  VALIDATE Interviewer Email (optional)
+            Guid? interviewerId = null;
+
+            if (!string.IsNullOrWhiteSpace(dto.InterviewerEmail))
+            {
+                var interviewer = await _context.Employees
+                    .Where(e => e.Email == dto.InterviewerEmail)
+                    .FirstOrDefaultAsync();
+
+                if (interviewer == null)
+                    return NotFound(new { message = "Interviewer with given email not found." });
+
+                interviewerId = interviewer.EmployeeID;
+            }
+
+            //  VALIDATE ScheduledDate and ScheduledTime
+            if (!DateTime.TryParse(dto.ScheduledDate, out DateTime date))
+                return BadRequest(new { message = "Invalid ScheduledDate format. Use YYYY-MM-DD." });
+
+            if (!TimeSpan.TryParse(dto.ScheduledTime, out TimeSpan time))
+                return BadRequest(new { message = "Invalid ScheduledTime format. Use HH:mm:ss." });
+
+            // VALIDATE date is not in the past
+            if (date < DateTime.UtcNow.Date)
                 return BadRequest(new { message = "ScheduledDate cannot be in the past." });
 
+            //  Create Interview Object
             var interview = new Interview
             {
-                Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
-                ShortlistId = dto.ShortlistId,
-                InterviewerId = dto.InterviewerId,
+                Id = Guid.NewGuid(),
 
-                Mode = dto.Type,
-                ScheduledDate = dto.ScheduledDate,
-                LocationUrl = dto.LocationUrl,
-                MeetingUrl = dto.MeetingUrl,
+                ShortlistId = shortlistId,
+
+                ScheduledDate = date,
+                ScheduledTime = time,
+
+                Duration = dto.Duration,
+
+                LocationORMeetingUrl = dto.LocationOrMeetingUrl,
+                InterviewerId = interviewerId,
+
                 InterviewNote = dto.InterviewNote,
+                Mode = dto.Mode,
+                Status = "Scheduled",
+
                 ScheduledOn = DateTime.UtcNow
             };
 
+            //  Save to DB
             _context.Interviews.Add(interview);
             await _context.SaveChangesAsync();
 
-            var today = DateTime.UtcNow.Date;
-
-            // Get today's interview count
-            var todayCount = await _context.Interviews
-                .Where(i => i.ScheduledDate.HasValue && i.ScheduledDate.Value.Date == today)
-                .CountAsync();
-
-            // Return latest scheduled interview with selected details
-            var latestInterview = await _context.Interviews
-                .Include(i => i.Shortlist)
-                .Include(i => i.Interviewer)
-                .Where(i => i.Id == interview.Id)
-                .Select(i => new
-                {
-                    ShortlistName = i.Shortlist != null ? i.Shortlist.Name : "Unknown",
-                    ShortlistPosition = i.Shortlist != null ? i.Shortlist.position : "N/A",
-                    InterviewerName = i.Interviewer != null
-                        ? i.Interviewer.FirstName + " " + i.Interviewer.LastName
-                        : "Not Assigned",
-                    Type = i.Mode,
-                    Status = i.Status,
-                    ScheduledDate = i.ScheduledDate
-                })
-                .FirstOrDefaultAsync();
-
             return Ok(new
             {
-                Message = "Interview scheduled successfully.",
-                TodayInterviewsCount = todayCount,
-                Interview = latestInterview
+                message = "Interview created successfully.",
+                data = interview
             });
         }
+
+
 
 
         //  2. Edit Interview
@@ -99,8 +124,7 @@ namespace HRMS.Backend.Controllers
             interview!.InterviewerId = dto.InterviewerId;
             interview.Mode = dto.Type;
             interview.ScheduledDate = dto.ScheduledDate;
-            interview.LocationUrl = dto.LocationUrl;
-            interview.MeetingUrl = dto.MeetingUrl;
+            interview.LocationORMeetingUrl = dto.LocationORMeetingUrl;
             interview.InterviewNote = dto.InterviewNote;
             interview.ScheduledOn = DateTime.UtcNow;
 
@@ -124,6 +148,53 @@ namespace HRMS.Backend.Controllers
 
             return Ok(new { message = "Interview deleted successfully." });
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllInterviews()
+        {
+            var interviews = await _context.Interviews
+                .Include(i => i.Shortlist)
+                    .ThenInclude(s => s.Job)
+                .Include(i => i.Interviewer)
+                .Select(i => new InterviewDTO
+                {
+                    Id = i.Id,
+                    ShortlistId = i.ShortlistId,
+
+                    // Applicant info comes from Shortlist
+                    ApplicantName = i.Shortlist.Name,
+                    ApplicantEmail = i.Shortlist.Email ?? string.Empty,
+                    Position = i.Shortlist.position ?? string.Empty,
+                    JobTitle = i.Shortlist.Job.JobTitle,
+
+                    // Interviewer info (NO null propagation)
+                    InterviewerId = i.InterviewerId,
+                    InterviewerName = i.InterviewerId != null
+                        ? i.Interviewer.FirstName + " " + i.Interviewer.LastName
+                        : "Not Assigned",
+
+                    InterviewerEmail = i.InterviewerId != null
+                        ? i.Interviewer.Email
+                        : string.Empty,
+
+                    // Interview details
+                    Type = i.Mode,
+                    Status = i.Status,
+                    ScheduledDate = i.ScheduledDate,
+                    ScheduledTime = i.ScheduledTime,
+                    Duration = i.Duration,
+                    LocationORMeetingUrl = i.LocationORMeetingUrl,
+                    InterviewNote = i.InterviewNote
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                message = "All interviews fetched successfully.",
+                data = interviews
+            });
+        }
+
 
         ////  4. Get All Interviews
         //[HttpGet]

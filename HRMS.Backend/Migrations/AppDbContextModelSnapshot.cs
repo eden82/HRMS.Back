@@ -55,7 +55,7 @@ namespace HRMS.Backend.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("OrganizationID")
+                    b.Property<Guid?>("OrganizationID")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("TenantID")
@@ -84,14 +84,8 @@ namespace HRMS.Backend.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                    b.Property<string>("Applications")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Appliedfor")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ContactInformation")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("ApplicantRegistrationId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -99,9 +93,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("Fordepartment")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("JobId")
                         .HasColumnType("uniqueidentifier");
@@ -111,9 +102,6 @@ namespace HRMS.Backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -121,10 +109,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<string>("ResumeUrl")
                         .HasMaxLength(2083)
                         .HasColumnType("nvarchar(2083)");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -134,11 +118,91 @@ namespace HRMS.Backend.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("position")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ApplicantRegistrationId");
 
                     b.HasIndex("JobId");
 
                     b.ToTable("applicants", (string)null);
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.ApplicantJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApplicantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsApplied")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantId");
+
+                    b.HasIndex("JobId");
+
+                    b.ToTable("applicant_jobs");
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.ApplicantRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Fullname")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("fullname");
+
+                    b.Property<string>("OtpCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OtpExpiryUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<byte[]>("PasswordSalt")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)")
+                        .HasColumnName("password_salt");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("applicant_registrations");
                 });
 
             modelBuilder.Entity("HRMS.Backend.Models.Asset", b =>
@@ -702,10 +766,7 @@ namespace HRMS.Backend.Migrations
                     b.Property<Guid?>("InterviewerId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("LocationUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MeetingUrl")
+                    b.Property<string>("LocationORMeetingUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Mode")
@@ -717,6 +778,9 @@ namespace HRMS.Backend.Migrations
 
                     b.Property<DateTime?>("ScheduledOn")
                         .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan?>("ScheduledTime")
+                        .HasColumnType("time");
 
                     b.Property<Guid>("ShortlistId")
                         .HasColumnType("uniqueidentifier");
@@ -746,10 +810,6 @@ namespace HRMS.Backend.Migrations
                     b.Property<DateTime?>("ApplicationDeadline")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("ClosingDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("closing_date");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
@@ -776,6 +836,10 @@ namespace HRMS.Backend.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("organization_id");
+
                     b.Property<string>("Requirement")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -795,6 +859,8 @@ namespace HRMS.Backend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentID");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("TenantID");
 
@@ -1941,9 +2007,7 @@ namespace HRMS.Backend.Migrations
 
                     b.HasOne("HRMS.Backend.Models.Organization", "Organization")
                         .WithMany("Announcements")
-                        .HasForeignKey("OrganizationID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("OrganizationID");
 
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany("Announcements")
@@ -1960,10 +2024,37 @@ namespace HRMS.Backend.Migrations
 
             modelBuilder.Entity("HRMS.Backend.Models.Applicant", b =>
                 {
+                    b.HasOne("HRMS.Backend.Models.ApplicantRegistration", "ApplicantRegistration")
+                        .WithMany()
+                        .HasForeignKey("ApplicantRegistrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("HRMS.Backend.Models.Job", "Job")
                         .WithMany("Applicants")
                         .HasForeignKey("JobId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ApplicantRegistration");
+
+                    b.Navigation("Job");
+                });
+
+            modelBuilder.Entity("HRMS.Backend.Models.ApplicantJob", b =>
+                {
+                    b.HasOne("HRMS.Backend.Models.ApplicantRegistration", "Applicant")
+                        .WithMany()
+                        .HasForeignKey("ApplicantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HRMS.Backend.Models.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Applicant");
 
                     b.Navigation("Job");
                 });
@@ -2174,6 +2265,10 @@ namespace HRMS.Backend.Migrations
                         .WithMany()
                         .HasForeignKey("DepartmentID");
 
+                    b.HasOne("HRMS.Backend.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
                     b.HasOne("HRMS.Backend.Models.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantID")
@@ -2181,6 +2276,8 @@ namespace HRMS.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
+
+                    b.Navigation("Organization");
 
                     b.Navigation("Tenant");
                 });

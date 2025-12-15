@@ -9,7 +9,7 @@ namespace HRMS.Backend.DTOs
         public bool CarryForward { get; set; }
         public string? Description { get; set; }
         public int MaxDays { get; set; }
-        public bool RequiresApproval { get; set; }
+        public bool RequiresApproval { get; set; } = true;
     }
 
     public class LeaveTypeViewDto : LeaveTypeDto

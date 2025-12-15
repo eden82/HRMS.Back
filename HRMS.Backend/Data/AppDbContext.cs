@@ -41,6 +41,10 @@ namespace HRMS.Backend.Data
         public DbSet<FeedbackResponse> FeedbackResponses => Set<FeedbackResponse>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<PermanentTenantSetting> PermanentTenantSettings { get; set; }
+        public DbSet<ApplicantRegistration> ApplicantRegistrations { get; set; }
+        public DbSet<ApplicantJob> ApplicantJobs { get; set; }
+
+
 
 
 

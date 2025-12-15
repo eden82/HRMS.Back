@@ -40,7 +40,7 @@ namespace HRMS.Backend.Models
         public int MaxDays { get; set; }
 
         [Column("requires_approval")]
-        public bool RequiresApproval { get; set; }
+        public bool RequiresApproval { get; set; } = true; 
 
         public ICollection<Leave> Leaves { get; set; } = new List<Leave>();
     }

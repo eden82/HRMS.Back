@@ -8,6 +8,10 @@ namespace HRMS.Backend.DTOs
         // FK -> Jobs(Id)
         public Guid? JobId { get; set; }
 
+
+        [Required]
+        public Guid ApplicantRegistrationId { get; set; }
+
         [Required, MaxLength(200)]
         public string Name { get; set; } = string.Empty;
 
@@ -17,23 +21,16 @@ namespace HRMS.Backend.DTOs
         [MaxLength(50)]
         public string? Phone { get; set; }
 
-        [MaxLength(2083)]
-        public string? ResumeUrl { get; set; }
+        public IFormFile? ResumeUrl { get; set; }
 
         [MaxLength(50)]
         public string Status { get; set; } = "Pending";
 
         [MaxLength(100)]
-        public string? Source { get; set; }
+        public string? position { get; set; }
 
-        public string? Notes { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public string? ContactInformation { get; set; }
-
-        public string? Appliedfor { get; set; }
-
-        public string? Applications { get; set; }
-
-        public string? Fordepartment { get; set; }
     }
 }

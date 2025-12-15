@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using HRMS.Backend.Data;
 using HRMS.Backend.Models;
 using HRMS.Backend.Filters;
-
+using HRMS.Backend.DTOs;
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
@@ -80,7 +80,7 @@ namespace HRMS.Backend.Controllers
         }
         // POST: api/departments
         [HttpPost]
-        public async Task<ActionResult<DepartmentDto>> CreateDepartment(CreateDepartmentDto dto)
+        public async Task<ActionResult<DepartmentDto>> CreateDepartment([FromBody] CreateDepartmentDto dto)
         {
             // ✅ Basic validation
             if (string.IsNullOrWhiteSpace(dto.DepartmentName))
@@ -214,8 +214,6 @@ namespace HRMS.Backend.Controllers
 
             var org = await _context.Organizations.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId);
-            if (org == null)
-                ModelState.AddModelError(nameof(dto.OrganizationId), "Organization not found.");
 
             if (dto.ParentDepartmentId.HasValue && dto.ParentDepartmentId.Value == id)
                 ModelState.AddModelError(nameof(dto.ParentDepartmentId), "A department cannot be its own parent.");
@@ -272,11 +270,12 @@ namespace HRMS.Backend.Controllers
             }
 
             // Apply updates
-            existing.OrganizationId = org!.Id;
-            existing.TenantId = org.TenantId;
+            existing.OrganizationId = org != null ? org.Id : (Guid?)null;
+            existing.TenantId = org?.TenantId ?? existing.TenantId;
             existing.DepartmentName = dto.DepartmentName.Trim();
-            existing.DepartmentHeadId = dto.DepartmentHeadId; // may be null now
+            existing.DepartmentHeadId = dto.DepartmentHeadId;
             existing.DepartmentCode = deptCode;
+
 
 
             // Only allow InitialEmployeeCount for main departments
@@ -648,8 +647,6 @@ namespace HRMS.Backend.Controllers
 
         // GET: api/departments/stats/{mainDepartmentId}
         //Department Statistics
-        // GET: api/departments/stats/{mainDepartmentId}
-        // Department Statistics
         [HttpGet("stats/{mainDepartmentId}")]
         [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
         public async Task<IActionResult> GetDepartmentStatistics(Guid mainDepartmentId)
@@ -668,10 +665,10 @@ namespace HRMS.Backend.Controllers
             // Combine main + sub-department IDs
             var allDeptIds = new List<Guid>(allSubDeptIds) { mainDepartmentId };
 
-            // Employees from main + sub-departments
+            // Employees from main
             var allEmployees = await _context.Employees
                 .Include(e => e.Department)
-                .Where(e => e.DepartmentId.HasValue && allDeptIds.Contains(e.DepartmentId.Value))
+                .Where(e => e.DepartmentId.HasValue)
                 .ToListAsync();
 
             // Employees for display (sub-departments)
@@ -687,6 +684,20 @@ namespace HRMS.Backend.Controllers
                     e.PhoneNumber
                 })
                 .ToList();
+
+            var allDeptEmployees = allEmployees
+                .Where(e => e.DepartmentId.HasValue && allDeptIds.Contains(e.DepartmentId.Value))
+                .Select(e => new
+                {
+                    e.EmployeeID,
+                    EmployeeName = (e.FirstName + " " + e.LastName).Trim(),
+                    e.JobTitle,
+                    e.Email,
+                    DepartmentName = (e.DepartmentId != mainDepartmentId) ? e.Department!.DepartmentName : null,
+                    e.PhoneNumber
+                })
+                .ToList();
+
 
             // ✅ Total employees (main + sub)
             var totalEmployees = allEmployees.Count;
@@ -718,12 +729,9 @@ namespace HRMS.Backend.Controllers
                 TotalEmployees = totalEmployees,
                 NewHires = newHires,
                 GoalStatistics = goalAchievementRate,
-                Employees = subDeptEmployees
+                Employees = allDeptEmployees
             });
         }
-
-
-
 
 
 

@@ -12,6 +12,10 @@ namespace HRMS.Backend.Models
         public Guid? JobId { get; set; }       // Changed from int? to Guid?
         public Job? Job { get; set; } = null!;
 
+        [Required]
+        public Guid ApplicantRegistrationId { get; set; }
+        public ApplicantRegistration ApplicantRegistration { get; set; } = null!;
+
         [Required, MaxLength(200)]
         public string Name { get; set; } = string.Empty;
 
@@ -28,17 +32,7 @@ namespace HRMS.Backend.Models
         public string Status { get; set; } = "Pending";
 
         [MaxLength(100)]
-        public string? Source { get; set; }
-
-        public string? Notes { get; set; } // nvarchar(max)
-
-        public string? ContactInformation { get; set; }
-
-        public string? Appliedfor { get; set; }
-
-        public string? Applications { get; set; }
-
-        public string? Fordepartment { get; set; }
+        public string? position { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
