@@ -3,14 +3,13 @@ using HRMS.Backend.DTOs;
 using HRMS.Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 using HRMS.Backend.Filters;
 
 namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR , Employee")]
     public class PerformanceReviewController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,186 +19,358 @@ namespace HRMS.Backend.Controllers
             _context = context;
         }
 
-        // Allowed reviewer IDs mapped to role names
-        private static readonly Dictionary<Guid, string> ReviewerRoles = new()
-        {
-            { Guid.Parse("00000000-0000-0000-0000-000000000001"), "SuperAdmin" },
-            { Guid.Parse("00000000-0000-0000-0000-000000000002"), "TenantHR" },
-            { Guid.Parse("00000000-0000-0000-0000-000000000004"), "Manager" },
-            { Guid.Parse("00000000-0000-0000-0000-000000000005"), "SubManager" }
-        };
-
-        // =============================
-        // 1. CREATE
-        // =============================
-
         [HttpPost]
-        public async Task<IActionResult> CreatePerformanceReview([FromBody] PerformanceReviewDto dto)
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR")]
+        public async Task<IActionResult> CreatePerformanceReview([FromBody] PerformanceReviewCreateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            //  Validate reviewer role from ROLES table
-            var reviewerRole = await _context.Roles
-                .FirstOrDefaultAsync(r => r.Id == dto.ReviewerId);
-
-            if (reviewerRole == null)
-                return BadRequest(new { message = "Reviewer role not found" });
-
-            //  Check if employee exists
+            // 1. Validate Employee
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.EmployeeID == dto.EmployeeId);
+                .FirstOrDefaultAsync(e =>
+                    e.Email.ToLower() == dto.EmployeeEmail.ToLower() &&
+                    e.TenantId == dto.TenantId);
 
             if (employee == null)
-                return BadRequest(new { message = "Employee not found" });
+                return BadRequest("Employee not found for this tenant.");
 
+            if (dto.Questions == null || !dto.Questions.Any())
+                return BadRequest("At least one review question is required.");
 
-            //  Calculate Rating Automatically (Average of 5 fields)
-            double rating = (dto.TechnicalSkill + dto.Communication + dto.Leadership + dto.Innovation + dto.Teamwork) / 5.0;
+            // 2. Fetch Questions
+            var questionIds = dto.Questions.Select(q => q.ReviewQuestionId).ToList();
 
-            //  Create new performance review
-            var review = new PerformanceReview
-            {
-                Id = dto.Id,
-                EmployeeId = dto.EmployeeId,
-                ReviewerId = dto.ReviewerId,
-                ReviewType = dto.ReviewType,
-                TechnicalSkill = dto.TechnicalSkill,
-                Communication = dto.Communication,
-                Leadership = dto.Leadership,
-                Innovation = dto.Innovation,
-                Teamwork = dto.Teamwork,
-                Rating = rating,
-                OverallFeedback = dto.OverallFeedback,
-                ReviewCycle = dto.ReviewCycle,
-                ReviewPeriodStart = dto.ReviewPeriodStart,
-                ReviewPeriodEnd = dto.ReviewPeriodEnd ?? dto.ReviewPeriodStart.AddMonths(3)
-            };
-
-
-
-            _context.PerformanceReviews.Add(review);
-            await _context.SaveChangesAsync();
-
-            //  Return Response with Employee Name, Review Type & Calculated Rating
-            var response = new
-            {
-                EmployeeName = $"{employee.FirstName} {employee.LastName}",
-                ReviewType = review.ReviewType,
-                Rating = review.Rating
-            };
-
-            return Ok(response);
-            //return Ok(new { message = "Performance review created successfully" });
-        }
-
-
-
-
-        // =========================================
-        // GET ALL Performance Reviews
-        // =========================================
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var reviews = await _context.PerformanceReviews
-                .Include(r => r.Employee)
-                .Select(r => new
-                {
-                    r.Id,
-                    EmployeeName = r.Employee.FirstName + " " + r.Employee.LastName,
-                    r.ReviewType,
-                    r.Rating
-                })
+            var questions = await _context.ReviewQuestions
+                .Where(q => questionIds.Contains(q.Id))
                 .ToListAsync();
 
-            return Ok(reviews);
+            if (questions.Count != questionIds.Count)
+                return BadRequest("One or more review questions are invalid.");
+
+            // 3. Tenant / Organization validation
+            foreach (var q in questions)
+            {
+                if (q.TenantId != dto.TenantId)
+                    return BadRequest("Question tenant mismatch.");
+
+                if (dto.OrganizationId == null && q.OrganizationId != null)
+                    return BadRequest("Organization question cannot be used at tenant level.");
+
+                if (dto.OrganizationId != null && q.OrganizationId != dto.OrganizationId)
+                    return BadRequest("Organization mismatch in review questions.");
+            }
+
+            // 4. Create MAIN review
+            var review = new PerformanceReview
+            {
+                Id = Guid.NewGuid(),
+                EmployeeId = employee.EmployeeID,
+                TenantID = dto.TenantId,
+                OrganizationID = dto.OrganizationId,
+                ReviewType = dto.ReviewType,
+                OverallFeedback = dto.OverallFeedback,
+                ReviewCycle = dto.ReviewCycle,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.PerformanceReviews.Add(review);
+
+            // 5. Create DETAIL records
+            var details = dto.Questions.Select(q => new PerformanceReviewDetail
+            {
+                Id = Guid.NewGuid(),
+                PerformanceReviewId = review.Id,
+                ReviewQuestionId = q.ReviewQuestionId,
+                Rating = q.Rating,
+                FeedBack = q.FeedBack,
+                TenantID = dto.TenantId,
+                OrganizationID = dto.OrganizationId,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            _context.PerformanceReviewDetails.AddRange(details);
+
+            await _context.SaveChangesAsync();
+
+            // 6. Response
+            return Ok(new
+            {
+                Message = "Performance review created successfully.",
+                ReviewId = review.Id,
+                QuestionsCount = details.Count
+            });
         }
 
-        // =========================================
-        // GET Performance Review by ID
-        // =========================================
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(Guid id)
+
+
+        [HttpPut("{id}")]
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR")]
+        public async Task<IActionResult> UpdatePerformanceReview(Guid id, [FromBody] PerformanceReviewCreateDto dto)
         {
             var review = await _context.PerformanceReviews
-                .Include(r => r.Employee)
-                .Where(r => r.Id == id)
-                .Select(r => new
-                {
-                    r.Id,
-                    EmployeeName = r.Employee.FirstName + " " + r.Employee.LastName,
-                    r.ReviewType,
-                    r.Rating,
-                    r.TechnicalSkill,
-                    r.Communication,
-                    r.Leadership,
-                    r.Innovation,
-                    r.Teamwork
-                })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(r => r.Id == id);
 
             if (review == null)
-                return NotFound(new { message = "Performance review not found" });
+                return NotFound(new { message = "Performance review not found." });
 
-            return Ok(review);
+            // Validate employee
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e =>
+                    e.Email.ToLower() == dto.EmployeeEmail.ToLower() &&
+                    e.TenantId == dto.TenantId);
+
+            if (employee == null)
+                return BadRequest("Employee not found for this tenant.");
+
+            if (dto.Questions == null || !dto.Questions.Any())
+                return BadRequest("At least one review question is required.");
+
+            // Validate questions
+            var questionIds = dto.Questions.Select(q => q.ReviewQuestionId).ToList();
+
+            var questions = await _context.ReviewQuestions
+                .Where(q => questionIds.Contains(q.Id))
+                .ToListAsync();
+
+            if (questions.Count != questionIds.Count)
+                return BadRequest("One or more review questions are invalid.");
+
+            foreach (var q in questions)
+            {
+                if (q.TenantId != dto.TenantId)
+                    return BadRequest("Question tenant mismatch.");
+
+                if (dto.OrganizationId == null && q.OrganizationId != null)
+                    return BadRequest("Organization question cannot be used at tenant level.");
+
+                if (dto.OrganizationId != null && q.OrganizationId != dto.OrganizationId)
+                    return BadRequest("Organization mismatch in review questions.");
+            }
+
+            // Update MAIN review
+            review.EmployeeId = employee.EmployeeID;
+            review.TenantID = dto.TenantId;
+            review.OrganizationID = dto.OrganizationId;
+            review.ReviewType = dto.ReviewType;
+            review.OverallFeedback = dto.OverallFeedback;
+            review.ReviewCycle = dto.ReviewCycle;
+            review.UpdatedAt = DateTime.UtcNow;
+
+            // Remove old question details
+            var oldDetails = await _context.PerformanceReviewDetails
+                .Where(d => d.PerformanceReviewId == review.Id)
+                .ToListAsync();
+
+            _context.PerformanceReviewDetails.RemoveRange(oldDetails);
+
+            // Insert new details
+            var newDetails = dto.Questions.Select(q => new PerformanceReviewDetail
+            {
+                Id = Guid.NewGuid(),
+                PerformanceReviewId = review.Id,
+                ReviewQuestionId = q.ReviewQuestionId,
+                Rating = q.Rating,
+                FeedBack = q.FeedBack,
+                TenantID = dto.TenantId,
+                OrganizationID = dto.OrganizationId,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            _context.PerformanceReviewDetails.AddRange(newDetails);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Performance review updated successfully.",
+                ReviewId = review.Id,
+                QuestionsCount = newDetails.Count
+            });
         }
 
-        // =========================================
-        // UPDATE Performance Review
-        // =========================================
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] PerformanceReview dto)
+
+
+        [HttpGet("{id}")]
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR, Employee")]
+        public async Task<IActionResult> GetById(Guid id)
         {
-            // Find the existing review
             var review = await _context.PerformanceReviews
                 .Include(r => r.Employee)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (review == null)
-                return NotFound(new { message = "Performance review not found" });
+                return NotFound(new { message = "Performance review not found." });
 
-            // Update fields
-            review.ReviewType = dto.ReviewType;
-            review.TechnicalSkill = dto.TechnicalSkill;
-            review.Communication = dto.Communication;
-            review.Leadership = dto.Leadership;
-            review.Innovation = dto.Innovation;
-            review.Teamwork = dto.Teamwork;
+            var questions = await _context.PerformanceReviewDetails
+                .Where(d => d.PerformanceReviewId == id)
+                .Include(d => d.ReviewQuestion)
+                .Select(d => new
+                {
+                    d.ReviewQuestionId,
+                    Question = d.ReviewQuestion.QuestionText,
+                    d.Rating,
+                    d.FeedBack
+                })
+                .ToListAsync();
 
-            //  Recalculate average rating
-            review.Rating = (dto.TechnicalSkill + dto.Communication + dto.Leadership + dto.Innovation + dto.Teamwork) / 5.0;
-
-            // Save changes
-            _context.PerformanceReviews.Update(review);
-            await _context.SaveChangesAsync();
-
-            //  Return EmployeeName, ReviewType & Rating in response
             return Ok(new
             {
-                EmployeeName = $"{review.Employee.FirstName} {review.Employee.LastName}",
+                review.Id,
+                Employee = review.Employee.FirstName + " " + review.Employee.LastName,
+                review.TenantID,
+                review.OrganizationID,
                 review.ReviewType,
-                review.Rating,
-                message = "Performance review updated successfully"
+                review.OverallFeedback,
+                review.ReviewCycle,
+                review.CreatedAt,
+                review.UpdatedAt,
+                Questions = questions
             });
         }
 
 
-        // =========================================
-        // DELETE Performance Review
-        // =========================================
+        // GET Performance Reviews by TenantId (tenant-level)
+        [HttpGet("tenant/{tenantId}")]
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR, Employee")]
+        public async Task<IActionResult> GetTenantLevelReviews(Guid tenantId)
+        {
+            // 1. Fetch tenant-level reviews
+            var reviews = await _context.PerformanceReviews
+                .Where(r => r.TenantID == tenantId && r.OrganizationID == null)
+                .Include(r => r.Employee)
+                .ToListAsync();
+
+            //if (!reviews.Any())
+            //    return NotFound(new { message = "No tenant-level performance reviews found for this tenant." });
+
+            // 2. Fetch tenant-level goals
+            var goals = await _context.Goals
+                .Where(g => g.TenantID == tenantId && g.OrganizationID == null)
+                .ToListAsync();
+
+            // ----------- ACTIVE GOALS ------------
+            var today = DateTime.UtcNow.Date;
+            var activeGoalsCount = goals
+                .Count(g => g.Status != "Complete" && g.DueDate.Date >= today);
+
+            // ----------- REVIEWS DUE ------------
+            var reviewsDueCount = await _context.RequestFeedbacks
+                .CountAsync(r =>
+                    r.FeedbackDeadline.Date <= today &&
+                    !r.FeedbackResponses.Any());
+
+            // ----------- GOAL COMPLETION (Percentage) ------------
+            int totalGoals = goals.Count;
+            int completedGoals = goals.Count(g => g.Status == "Complete");
+
+            double completionPercentage = totalGoals == 0
+                ? 0
+                : Math.Round((completedGoals / (double)totalGoals) * 100, 2);
+
+            // 3. Prepare review data (NEW)
+            var reviewData = reviews.Select(r => new
+            {
+                r.Id,
+                Employee = r.Employee != null
+                    ? r.Employee.FirstName + " " + r.Employee.LastName
+                    : "Unknown",
+                r.TenantID,
+                r.OrganizationID,
+                r.ReviewType,
+                r.OverallFeedback,
+                r.ReviewCycle,
+                r.CreatedAt,
+                r.UpdatedAt,
+
+                //  Rating summary from details
+                AverageRating = _context.PerformanceReviewDetails
+                    .Where(d => d.PerformanceReviewId == r.Id)
+                    .Average(d => (double?)d.Rating) ?? 0,
+
+                QuestionsCount = _context.PerformanceReviewDetails
+                    .Count(d => d.PerformanceReviewId == r.Id)
+            });
+
+            // 4. Return SAME STRUCTURE you asked for
+            return Ok(new
+            {
+                Message = "Tenant-level performance reviews retrieved successfully.",
+                Data = reviewData,
+                Metrics = new
+                {
+                    activeGoalsCount = activeGoalsCount,
+                    reviewsDueCount = reviewsDueCount,
+                    completedGoals = completedGoals,
+                    completionPercentage = completionPercentage
+                }
+            });
+        }
+
+
+
+
+        // GET Performance Reviews by UserID
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetByUserId(Guid userId)
+        {
+            var reviews = await _context.PerformanceReviews
+                .Where(r => r.EmployeeId == userId)
+                .Include(r => r.Employee)
+                .ToListAsync();
+
+            if (!reviews.Any())
+                return NotFound(new { message = "No performance reviews found for this user." });
+
+            var data = reviews.Select(r => new
+            {
+                r.Id,
+                Employee = r.Employee != null
+                    ? r.Employee.FirstName + " " + r.Employee.LastName
+                    : "Unknown",
+                r.TenantID,
+                r.OrganizationID,
+                r.ReviewType,
+                r.ReviewCycle,
+                r.OverallFeedback,
+                r.CreatedAt,
+                r.UpdatedAt,
+
+                AverageRating = _context.PerformanceReviewDetails
+                    .Where(d => d.PerformanceReviewId == r.Id)
+                    .Average(d => (double?)d.Rating) ?? 0,
+
+                QuestionsCount = _context.PerformanceReviewDetails
+                    .Count(d => d.PerformanceReviewId == r.Id)
+            });
+
+            return Ok(new
+            {
+                Message = "Performance reviews retrieved successfully.",
+                Data = data
+            });
+        }
+
+
+
         [HttpDelete("{id}")]
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var review = await _context.PerformanceReviews.FindAsync(id);
+            var review = await _context.PerformanceReviews
+                .FirstOrDefaultAsync(r => r.Id == id);
 
             if (review == null)
-                return NotFound(new { message = "Performance review not found" });
+                return NotFound(new { message = "Performance review not found." });
 
+            var details = await _context.PerformanceReviewDetails
+                .Where(d => d.PerformanceReviewId == id)
+                .ToListAsync();
+
+            _context.PerformanceReviewDetails.RemoveRange(details);
             _context.PerformanceReviews.Remove(review);
+
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Performance review deleted successfully" });
+            return Ok(new { message = "Performance review deleted successfully." });
         }
+
     }
 }

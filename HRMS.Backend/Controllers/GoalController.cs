@@ -58,128 +58,241 @@ namespace HRMS.Backend.Controllers
         // CREATE Goal
         [HttpPost]
         [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
-        public async Task<ActionResult<Goal>> CreateGoal([FromBody] GoalDto dto)
+        public async Task<IActionResult> CreateGoal([FromBody] GoalCreateDto dto)
         {
+            // -------------------------------
+            // 1. Validate Employee by Email
+            // -------------------------------
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Email.ToLower() == dto.EmployeeEmail.ToLower()
+                                       && e.TenantId == dto.TenantID);
+
+            if (employee == null)
+            {
+                ModelState.AddModelError(nameof(dto.EmployeeEmail), "Employee not found for this tenant.");
+                return BadRequest(ModelState);
+            }
+
+            // -------------------------------
+            // 2. Organization & Tenant Rules
+            // -------------------------------
+
+            // CASE Tenant Level Goal (OrganizationID = null)
+            if (dto.OrganizationID == null)
+            {
+                if (employee.OrganizationId != null)
+                {
+                    ModelState.AddModelError(nameof(dto.OrganizationID),
+                        "Employee must not belong to an organization for a tenant-level goal.");
+                }
+
+                if (employee.TenantId != dto.TenantID)
+                {
+                    ModelState.AddModelError(nameof(dto.TenantID),
+                        "Employee tenant does not match goal tenant.");
+                }
+            }
+
+            // CASE  Organization Level Goal
+            else
+            {
+                if (employee.OrganizationId == null)
+                {
+                    ModelState.AddModelError(nameof(dto.OrganizationID),
+                        "Employee must belong to an organization for an organization-level goal.");
+                }
+                else if (employee.OrganizationId != dto.OrganizationID)
+                {
+                    ModelState.AddModelError(nameof(dto.OrganizationID),
+                        "Employee organization does not match goal organization.");
+                }
+
+                if (employee.TenantId != dto.TenantID)
+                {
+                    ModelState.AddModelError(nameof(dto.TenantID),
+                        "Employee tenant does not match goal tenant.");
+                }
+            }
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // -------------------------------
+            // Save Goal
+            // -------------------------------
             var goal = new Goal
             {
                 Id = Guid.NewGuid(),
-                EmployeeID = dto.EmployeeID!.Value,
-                OrganizationID = dto.OrganizationID!.Value,
-                TenantID = dto.TenantID!.Value,
+                EmployeeID = employee.EmployeeID,   // Employee found by email
+                OrganizationID = dto.OrganizationID,
+                TenantID = dto.TenantID,
                 GoalTitle = dto.GoalTitle,
                 Category = dto.Category,
                 Priority = dto.Priority,
                 Status = dto.Status,
                 DueDate = dto.DueDate,
-                Description = dto.Description
+                Description = dto.Description,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Goals.Add(goal);
             await _context.SaveChangesAsync();
 
-            // Get the goal details for response
-            var goalDetails = await _context.Goals
-                .Where(g => g.Id == goal.Id)
-                .Select(g => new
-                {
-                    EmployeeName = g.Employee != null
-                        ? g.Employee.FirstName + " " + g.Employee.LastName
-                        : "Unknown",
+            // -------------------------------
+            // Response (Match Job Structure)
+            // -------------------------------
+            var employeeName = employee.FirstName + " " + employee.LastName;
 
-                    GoalTitle = g.GoalTitle,
-                    Category = g.Category,
-                    Priority = g.Priority,
-                    DueDate = g.DueDate,
-                    Status = g.Status,
-                    Description = g.Description,
-                    GoalProcess = g.GoalProcess
-
-                })
-                .FirstOrDefaultAsync();
-
-            var Employeegoal = new
+            var response = new
             {
-                GoalTitle = goal.GoalTitle,
-                Category = goal.Category,
-                Priority = goal.Priority,
-                DueDate = goal.DueDate,
-                Description = goal.Description,
-                GoalProcess = goal.GoalProcess
-
+                goal.Id,
+                goal.GoalTitle,
+                goal.Category,
+                goal.Priority,
+                goal.DueDate,
+                goal.Status,
+                Employee = employeeName,
+                Organization = dto.OrganizationID?.ToString() ?? "Tenant-Level",
+                goal.Description,
+                goal.CreatedAt
             };
 
-            // Get active goals count
+            // Active Goal Count
             var activeGoalsCount = await _context.Goals
-                .Where(g => g.Status == "InProgress")
+                .Where(g => g.Status == "Active")
                 .CountAsync();
 
             return Ok(new
             {
-                Goal = goalDetails,
-                ActiveGoals = activeGoalsCount,
-                Employeegoal = Employeegoal
+                Message = "Goal created successfully.",
+                data = response,
+                ActiveGoalsCount = activeGoalsCount
             });
-            //return CreatedAtAction(nameof(GetGoalById), new { id = goal.Id }, goal);
         }
+
 
 
         // UPDATE goal
         [HttpPut("{id}")]
         [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
-        public async Task<IActionResult> UpdateGoal(Guid id, [FromBody] GoalDto dto)
+        public async Task<IActionResult> UpdateGoal(Guid id, [FromBody] GoalCreateDto dto)
         {
-            var goal = await _context.Goals
-                .Include(g => g.Employee)
-                .FirstOrDefaultAsync(g => g.Id == id);
+            // -------------------------------
+            // Find Employee by Email
+            // -------------------------------
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e =>
+                    e.Email.ToLower() == dto.EmployeeEmail.ToLower() &&
+                    e.TenantId == dto.TenantID
+                );
+
+            if (employee == null)
+            {
+                return BadRequest(new { message = "Employee not found for this tenant." });
+            }
+
+            // -------------------------------
+            // Find Goal
+            // -------------------------------
+            var goal = await _context.Goals.FirstOrDefaultAsync(g => g.Id == id);
 
             if (goal == null)
-                return NotFound(new { message = "Goal not found" });
+                return NotFound(new { message = "Goal not found." });
 
-            // Apply updates
+            // -------------------------------
+            // Validate Tenant/Organization Rules
+            // -------------------------------
+
+            // Tenant-level goal
+            if (dto.OrganizationID == null)
+            {
+                if (employee.OrganizationId != null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Employee must not belong to an organization for a tenant-level goal."
+                    });
+                }
+            }
+            else
+            {
+                // Org-level goal
+                if (employee.OrganizationId == null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Employee must belong to an organization for an organization-level goal."
+                    });
+                }
+
+                if (employee.OrganizationId != dto.OrganizationID)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Employee organization does not match goal organization."
+                    });
+                }
+            }
+
+            if (employee.TenantId != dto.TenantID)
+            {
+                return BadRequest(new { message = "Employee tenant does not match goal tenant." });
+            }
+
+            // -------------------------------
+            // Update Goal
+            // -------------------------------
+            goal.EmployeeID = employee.EmployeeID;
             goal.GoalTitle = dto.GoalTitle;
             goal.Category = dto.Category;
             goal.Priority = dto.Priority;
             goal.DueDate = dto.DueDate;
             goal.Status = dto.Status;
             goal.Description = dto.Description;
+            goal.OrganizationID = dto.OrganizationID;
+            goal.TenantID = dto.TenantID;
+            goal.UpdatedAt = DateTime.UtcNow;
 
             _context.Goals.Update(goal);
             await _context.SaveChangesAsync();
 
-            //  Get the updated goal details
-            var goalDetails = await _context.Goals
-                .Where(g => g.Id == goal.Id)
-                .Select(g => new
-                {
-                    EmployeeName = g.Employee != null
-                        ? g.Employee.FirstName + " " + g.Employee.LastName
-                        : "Unknown",
+            // -------------------------------
+            // Response (same as POST)
+            // -------------------------------
+            var employeeName = employee.FirstName + " " + employee.LastName;
 
-                    GoalTitle = g.GoalTitle,
-                    Category = g.Category,
-                    Priority = g.Priority,
-                    DueDate = g.DueDate,
-                    Status = g.Status,
-                    Description = g.Description
-                })
-                .FirstOrDefaultAsync();
+            var response = new
+            {
+                goal.Id,
+                goal.GoalTitle,
+                goal.Category,
+                goal.Priority,
+                goal.DueDate,
+                goal.Status,
+                Employee = employeeName,
+                Organization = goal.OrganizationID?.ToString() ?? "Tenant-Level",
+                goal.Description,
+                goal.CreatedAt,
+                goal.UpdatedAt
+            };
 
-            //  Get active goals count
+            // -------------------------------
+            // Active Goals Count
+            // -------------------------------
             var activeGoalsCount = await _context.Goals
-                .Where(g => g.Status == "Active")
+                .Where(g => g.Status != "Completed" &&
+                       g.DueDate >= DateTime.UtcNow.Date)
                 .CountAsync();
 
-            //  Return the same structure as in Create
             return Ok(new
             {
                 Message = "Goal updated successfully.",
-                Goal = goalDetails,
-                ActiveGoals = activeGoalsCount
+                data = response,
+                ActiveGoalsCount = activeGoalsCount
             });
         }
+
 
 
 
@@ -199,7 +312,7 @@ namespace HRMS.Backend.Controllers
         }
 
 
-       
+
         // GET Goal Details by ID
         [HttpGet("details/{id}")]
         [RoleAuthorize("SuperAdmin , SystemAdmin , HR")]
@@ -327,6 +440,101 @@ namespace HRMS.Backend.Controllers
         {
             return progress >= 100 ? "Complete" : "InProgress";
         }
+
+
+        // GET: api/goal/user/{userId}
+        [HttpGet("user/{userId}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR, Employee")]
+        public async Task<IActionResult> GetGoalsByUserId(Guid userId)
+        {
+            // 1. Get the user
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null || user.EmployeeId == null)
+                return NotFound(new { message = "User or associated employee not found." });
+
+            // 2. Get all goals for that employee
+            var goals = await _context.Goals
+                .Where(g => g.EmployeeID == user.EmployeeId)
+                .Include(g => g.Organization)
+                .Include(g => g.Tenant)
+                .Select(g => new
+                {
+                    g.Id,
+                    g.GoalTitle,
+                    g.Category,
+                    g.Priority,
+                    g.Status,
+                    g.DueDate,
+                    g.Description,
+                    g.GoalProcess,
+                    OrganizationName = g.Organization != null ? g.Organization.Name : null,
+                    TenantName = g.Tenant != null ? g.Tenant.Name : null
+                })
+                .ToListAsync();
+
+            if (!goals.Any())
+                return NotFound(new { message = "No goals found for this employee." });
+
+            return Ok(goals);
+        }
+
+        // GET: api/goal/tenant/{tenantId}
+        [HttpGet("tenant/{tenantId}")]
+        [RoleAuthorize("SuperAdmin , SystemAdmin , HR, Employee")]
+        public async Task<IActionResult> GetTenantLevelGoals(Guid tenantId)
+        {
+            // Fetch goals for the tenant where OrganizationID is null
+            var goals = await _context.Goals
+                .Where(g => g.TenantID == tenantId && g.OrganizationID == null)
+                .Include(g => g.Employee)
+                .ToListAsync();
+
+ 
+            // ----------- ACTIVE GOALS ------------
+            var today = DateTime.UtcNow.Date;
+            var activeGoalsCount = goals
+                .Count(g => g.Status != "Complete" && g.DueDate.Date >= today);
+
+            // ----------- REVIEWS DUE ------------
+            var reviewsDueCount = await _context.RequestFeedbacks
+                .CountAsync(r => r.FeedbackDeadline.Date <= today &&
+                                 !r.FeedbackResponses.Any());
+
+            // ----------- GOAL COMPLETION (Percentage) ------------
+            int totalGoals = goals.Count;
+            int completedGoals = goals.Count(g => g.Status == "Complete");
+
+            double completionPercentage = totalGoals == 0
+                ? 0
+                : Math.Round((completedGoals / (double)totalGoals) * 100, 2);
+
+            // ----------- GOALS LIST RESPONSE ------------
+            var goalList = goals.Select(g => new
+            {
+                g.Id,
+                g.GoalTitle,
+                g.Category,
+                g.Priority,
+                g.Status,
+                g.DueDate,
+                g.Description,
+                g.GoalProcess,
+                EmployeeName = g.Employee != null ? g.Employee.FirstName + " " + g.Employee.LastName : "Unknown"
+            });
+
+            return Ok(new
+            {
+                TotalGoals = totalGoals,
+                ActiveGoals = activeGoalsCount,
+                ReviewsDue = reviewsDueCount,
+                CompletionPercentage = completionPercentage,
+                Goals = goalList
+            });
+        }
+
 
 
     }

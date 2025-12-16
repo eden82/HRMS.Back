@@ -13,8 +13,8 @@ namespace HRMS.Backend.Models
         public Guid EmployeeID { get; set; }
         public Employee? Employee { get; set; }
 
-        [Required]
-        public Guid OrganizationID { get; set; }
+
+        public Guid? OrganizationID { get; set; }
         public Organization? Organization { get; set; }
 
         [Required]
@@ -39,6 +39,10 @@ namespace HRMS.Backend.Models
 
         [Required]
         public string Description { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? UpdatedAt { get; set; }
 
         public int GoalProcess { get; set; } = 0;
     }

@@ -433,6 +433,34 @@ namespace HRMS.Backend.Controllers
             return Ok("Password reset successfully.");
         }
 
+        [HttpGet("employees/by-tenant/{tenantId:guid}")]
+        public async Task<IActionResult> GetEmployeesByTenant(Guid tenantId)
+        {
+            var employees = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .Where(u =>
+                    u.TenantId == tenantId &&
+                    u.UserRoles.Any(ur => ur.Role!.Name == "Employee")
+                )
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.Email,
+                    u.PhoneNumber,
+                    Roles = u.UserRoles.Select(ur => ur.Role!.Name).ToList(),
+                    u.EmployeeId,
+                    u.OrganizationId,
+                    u.IsActive,
+                    u.LastLoginUtc,
+                    u.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(employees);
+        }
 
 
 

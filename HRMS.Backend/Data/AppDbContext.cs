@@ -26,7 +26,7 @@ namespace HRMS.Backend.Data
         public DbSet<Goal> Goals => Set<Goal>();
         public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
         public DbSet<RequestFeedback> RequestFeedbacks => Set<RequestFeedback>();
-        
+
         public DbSet<Training> Trainings => Set<Training>();
         public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
         public DbSet<TrainingMaterial> TrainingMaterials => Set<TrainingMaterial>();
@@ -43,7 +43,8 @@ namespace HRMS.Backend.Data
         public DbSet<PermanentTenantSetting> PermanentTenantSettings { get; set; }
         public DbSet<ApplicantRegistration> ApplicantRegistrations { get; set; }
         public DbSet<ApplicantJob> ApplicantJobs { get; set; }
-
+        public DbSet<ReviewQuestion> ReviewQuestions { get; set; }
+        public DbSet<PerformanceReviewDetail> PerformanceReviewDetails { get; set; }
 
 
 
@@ -337,7 +338,7 @@ namespace HRMS.Backend.Data
                 e.HasOne(x => x.Department)
                  .WithMany(d => d.Employees)
                  .HasForeignKey(x => new { x.DepartmentId, x.TenantId })   // remove OrganizationId
-                 .HasPrincipalKey(d => new { d.Id, d.TenantId })            // ✅ simpler reference
+                 .HasPrincipalKey(d => new { d.Id, d.TenantId })            // simpler reference
                  .OnDelete(DeleteBehavior.Restrict)
                  .IsRequired(false);
 
@@ -350,8 +351,19 @@ namespace HRMS.Backend.Data
                  .HasPrincipalKey(x => new { x.EmployeeID, x.TenantId })
                  .OnDelete(DeleteBehavior.Cascade);
 
+
+
                 // Indexes / uniques
-                e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
+                // For tenant-only employees (OrganizationId IS NULL)
+                e.HasIndex(x => new { x.TenantId, x.Email })
+                 .IsUnique()
+                 .HasFilter("[organization_id] IS NULL");
+
+                // For organization employees (OrganizationId not null)
+                e.HasIndex(x => new { x.TenantId, x.OrganizationId, x.Email })
+                 .IsUnique()
+                 .HasFilter("[organization_id] IS NOT NULL");
+
                 e.HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique()
                  .HasFilter("[employee_code] IS NOT NULL");
 
@@ -417,7 +429,7 @@ namespace HRMS.Backend.Data
                 e.Property(r => r.Description).HasMaxLength(200);
                 e.Property(r => r.PermissionsJson).HasColumnName("permissions"); // nvarchar(max) by default
 
-            }); 
+            });
             model.Entity<User>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Job>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Applicant>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
@@ -439,7 +451,7 @@ namespace HRMS.Backend.Data
                 .HasOne(ur => ur.User)
                 .WithMany(u => u.UserRoles)
                 .HasForeignKey(ur => ur.UserId)
-                .OnDelete(DeleteBehavior.Cascade); 
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             model.Entity<UserRole>()
@@ -503,6 +515,16 @@ namespace HRMS.Backend.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            model.Entity<Job>(entity =>
+            {
+                entity.HasOne(j => j.Organization)
+                    .WithMany(o => o.Jobs)
+                    .HasForeignKey(j => j.OrganizationId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
+            });
+
+
             /* ===== Leaves (uses Employee AK + optional Approver) ===== */
             model.Entity<Leave>(e =>
             {
@@ -564,7 +586,7 @@ namespace HRMS.Backend.Data
                  .HasForeignKey(pr => pr.EmployeeId)
                  .OnDelete(DeleteBehavior.NoAction);
 
-                
+
             });
             // Tokenization & Users
             model.Entity<RefreshToken>(e =>
@@ -617,11 +639,19 @@ namespace HRMS.Backend.Data
                 e.Property(u => u.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             });
 
-            model.Entity<PerformanceReview>()
-                .HasOne<Employee>()
+
+            /* ===== PerformanceReviewDetail (avoid multiple cascade paths) ===== */
+            model.Entity<PerformanceReviewDetail>()
+                .HasOne(d => d.Organization)
                 .WithMany()
-                .HasForeignKey(p => p.ReviewerId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .HasForeignKey(d => d.OrganizationID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            model.Entity<PerformanceReviewDetail>()
+                .HasOne(d => d.Tenant)
+                .WithMany()
+                .HasForeignKey(d => d.TenantID)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
 

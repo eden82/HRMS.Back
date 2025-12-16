@@ -3,33 +3,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HRMS.Backend.DTOs
 {
-    public class PerformanceReviewDto
+    public class PerformanceReviewCreateDto
     {
-        public Guid Id { get; set; } = Guid.NewGuid(); // GUID ID
+        [Required]
+        public string EmployeeEmail { get; set; } = string.Empty;
 
         [Required]
-        public Guid EmployeeId { get; set; }  // GUID
+        public Guid TenantId { get; set; }
 
-        public Guid ReviewerId { get; set; }
-
+        public Guid? OrganizationId { get; set; } // Null for tenant-level review
 
         [Required, MaxLength(50)]
         public string ReviewType { get; set; } = string.Empty;
-
-        [Range(1, 10)]
-        public int TechnicalSkill { get; set; }
-
-        [Range(1, 10)]
-        public int Communication { get; set; }
-
-        [Range(1, 10)]
-        public int Leadership { get; set; }
-
-        [Range(1, 10)]
-        public int Innovation { get; set; }
-
-        [Range(1, 10)]
-        public int Teamwork { get; set; }
 
         [Required]
         public string OverallFeedback { get; set; } = string.Empty;
@@ -37,9 +22,17 @@ namespace HRMS.Backend.DTOs
         [MaxLength(50)]
         public string ReviewCycle { get; set; } = string.Empty;
 
-        [Required]
-        public DateTime ReviewPeriodStart { get; set; }
+        public List<PerformanceReviewQuestionDto> Questions { get; set; } = new();
 
-        public DateTime? ReviewPeriodEnd { get; set; }
     }
+
+    public class PerformanceReviewQuestionDto
+    {
+        public Guid ReviewQuestionId { get; set; }
+        public int Rating { get; set; }
+
+        [Required]
+        public string FeedBack { get; set; } = string.Empty;
+    }
+
 }

@@ -734,6 +734,28 @@ namespace HRMS.Backend.Controllers
         }
 
 
+        // GET: api/departments/names/{tenantId}
+        [HttpGet("names/{tenantId:guid}")]
+        [RoleAuthorize("SuperAdmin,SystemAdmin,HR")]
+        public async Task<IActionResult> GetDepartmentNamesByTenant(Guid tenantId)
+        {
+            // Validate tenant
+            var tenantExists = await _context.Tenants
+                .AsNoTracking()
+                .AnyAsync(t => t.Id == tenantId);
+
+            if (!tenantExists)
+                return NotFound(new { message = "Tenant not found." });
+
+            var departmentNames = await _context.Departments
+                .AsNoTracking()
+                .Where(d => d.TenantId == tenantId)
+                .OrderBy(d => d.DepartmentName)
+                .Select(d => d.DepartmentName)
+                .ToListAsync();
+
+            return Ok(departmentNames);
+        }
 
 
 

@@ -44,5 +44,7 @@ namespace HRMS.Backend.Models
         public ICollection<Employee> Employees { get; set; } = new List<Employee>();
         public ICollection<LeaveType> LeaveTypes { get; set; } = new List<LeaveType>();
         public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
+        public ICollection<Job>? Jobs { get; set; } = new List<Job>();
+
     }
 }
