@@ -9,7 +9,7 @@ namespace HRMS.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [RoleAuthorize("SuperAdmin , SystemAdmin , HR , Employee")]
+    [RoleAuthorize("SuperAdmin , SystemAdmin , HR, Employee")]
     public class PerformanceReviewController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -307,46 +307,78 @@ namespace HRMS.Backend.Controllers
 
 
 
-        // GET Performance Reviews by UserID
+
+        // GET: api/performancereview/user/{userId}
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetByUserId(Guid userId)
+        [RoleAuthorize("SuperAdmin, SystemAdmin, HR, Employee")]
+        public async Task<IActionResult> GetPerformanceReviewsByUser(Guid userId)
         {
+            if (userId == Guid.Empty)
+                return BadRequest("UserId is required.");
+
+            //  Find the user
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                return NotFound("User not found.");
+
+            //  Get EmployeeId from User
+            if (user.EmployeeId == null)
+                return BadRequest("User is not linked to an employee.");
+
+            var employeeId = user.EmployeeId.Value;
+
+            //  Get all performance reviews for this employee
             var reviews = await _context.PerformanceReviews
-                .Where(r => r.EmployeeId == userId)
-                .Include(r => r.Employee)
+                .Where(r => r.EmployeeId == employeeId)
+                .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
-            if (!reviews.Any())
-                return NotFound(new { message = "No performance reviews found for this user." });
+            //if (!reviews.Any())
+            //    return NotFound(new { message = "No performance reviews found for this employee." });
 
-            var data = reviews.Select(r => new
+            //  Get all review details (questions, ratings, feedback)
+            var reviewIds = reviews.Select(r => r.Id).ToList();
+
+            var details = await _context.PerformanceReviewDetails
+                .Where(d => reviewIds.Contains(d.PerformanceReviewId))
+                .Include(d => d.ReviewQuestion)
+                .ToListAsync();
+
+            //  Structured response
+            var response = new
             {
-                r.Id,
-                Employee = r.Employee != null
-                    ? r.Employee.FirstName + " " + r.Employee.LastName
-                    : "Unknown",
-                r.TenantID,
-                r.OrganizationID,
-                r.ReviewType,
-                r.ReviewCycle,
-                r.OverallFeedback,
-                r.CreatedAt,
-                r.UpdatedAt,
+                performancereviewemployee = reviews.Select(r => new
+                {
+                    reviewId = r.Id,
+                    r.ReviewType,
+                    r.ReviewCycle,
+                    r.OverallFeedback,
+                    r.CreatedAt,
 
-                AverageRating = _context.PerformanceReviewDetails
-                    .Where(d => d.PerformanceReviewId == r.Id)
-                    .Average(d => (double?)d.Rating) ?? 0,
+                    questions = details
+                        .Where(d => d.PerformanceReviewId == r.Id)
+                        .Select(d => new
+                        {
+                            d.ReviewQuestionId,
+                            question = d.ReviewQuestion.QuestionText,
+                            d.Rating,
+                            feedback = d.FeedBack
+                        })
+                })
+            };
 
-                QuestionsCount = _context.PerformanceReviewDetails
-                    .Count(d => d.PerformanceReviewId == r.Id)
-            });
-
-            return Ok(new
-            {
-                Message = "Performance reviews retrieved successfully.",
-                Data = data
-            });
+            return Ok(response);
         }
+
+
+
+
+
+
+
 
 
 

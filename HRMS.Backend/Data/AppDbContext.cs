@@ -27,13 +27,18 @@ namespace HRMS.Backend.Data
         public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
         public DbSet<RequestFeedback> RequestFeedbacks => Set<RequestFeedback>();
 
-        public DbSet<Training> Trainings => Set<Training>();
-        public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
-        public DbSet<TrainingMaterial> TrainingMaterials => Set<TrainingMaterial>();
+
+
+        // Training Program Related
+        public DbSet<TrainingProgram> TrainingPrograms => Set<TrainingProgram>();
         public DbSet<TrainingEnrollment> TrainingEnrollments => Set<TrainingEnrollment>();
         public DbSet<TrainingFeedback> TrainingFeedbacks => Set<TrainingFeedback>();
+        public DbSet<TrainingMaterial> TrainingMaterials => Set<TrainingMaterial>();
 
+        //Assets
         public DbSet<Asset> Assets => Set<Asset>();
+
+
         public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
         public DbSet<OrgSetting> OrgSettings => Set<OrgSetting>();
 
@@ -439,8 +444,9 @@ namespace HRMS.Backend.Data
             model.Entity<Goal>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<PerformanceReview>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<RequestFeedback>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
-            model.Entity<Training>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
+            model.Entity<TrainingFeedback>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<TrainingEnrollment>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
+            model.Entity<TrainingProgram>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<Asset>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<TenantSetting>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
             model.Entity<OrgSetting>(e => e.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()"));
@@ -746,136 +752,181 @@ namespace HRMS.Backend.Data
             });
 
             /* ===== TRAINING (Programs) ===== */
-            model.Entity<Training>(e =>
+            model.Entity<TrainingProgram>(e =>
             {
                 e.ToTable("training_programs");
+
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
-                e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
-                e.Property(x => x.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
-                e.Property(x => x.Category).HasColumnName("category").IsRequired().HasMaxLength(100);
-                e.Property(x => x.Level).HasColumnName("level").IsRequired();
-                e.Property(x => x.DurationHours).HasColumnName("duration_hours").IsRequired();
-                e.Property(x => x.InstructorName).HasColumnName("instructor_name").IsRequired().HasMaxLength(120);
-                e.Property(x => x.MaxEnrollment).HasColumnName("max_enrollment");
-                e.Property(x => x.StartDateUtc).HasColumnName("start_date_utc");
-                e.Property(x => x.EndDateUtc).HasColumnName("end_date_utc");
-                e.Property(x => x.Description).HasColumnName("description").HasMaxLength(1000);
+                e.Property(x => x.Id)
+                 .HasColumnName("id")
+                 .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                // Org/Tenant FKs if you keep navs (optional)
-                e.HasOne<Organization>()
+                e.Property(x => x.TenantId)
+                 .HasColumnName("tenant_id")
+                 .IsRequired();
+
+                e.Property(x => x.OrganizationId)
+                 .HasColumnName("organization_id");
+
+                e.Property(x => x.Title)
+                 .HasColumnName("title")
+                 .HasMaxLength(200)
+                 .IsRequired();
+
+                e.Property(x => x.Category)
+                 .HasColumnName("category")
+                 .HasMaxLength(100);
+
+                e.Property(x => x.Level)
+                 .HasColumnName("level")
+                 .HasMaxLength(50);
+
+                e.Property(x => x.DurationHours)
+                 .HasColumnName("duration_hours");
+
+                // FIX: InstructorId (NOT InstructorName)
+                e.Property(x => x.InstructorId)
+                 .HasColumnName("instructor_id")
+                 .IsRequired();
+
+                e.Property(x => x.MaxEnrollment)
+                 .HasColumnName("max_enrollment");
+
+                e.Property(x => x.StartDate)
+                 .HasColumnName("start_date");
+
+                e.Property(x => x.EndDate)
+                 .HasColumnName("end_date");
+
+                e.Property(x => x.Description)
+                 .HasColumnName("description")
+                 .HasMaxLength(1000);
+
+                // 🔹 Organization relationship
+                e.HasOne(x => x.Organization)
                  .WithMany()
                  .HasForeignKey(x => x.OrganizationId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasIndex(x => new { x.TenantId, x.OrganizationId, x.Title });
+                // 🔹 Instructor → Employee relationship
+                e.HasOne(x => x.Instructor)
+                 .WithMany()
+                 .HasForeignKey(x => x.InstructorId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // 🔹 Multi-tenant index
+                e.HasIndex(x => new { x.TenantId, x.OrganizationId });
             });
 
-            /* ===== TRAINING SESSIONS ===== */
-            model.Entity<TrainingSession>(e =>
-            {
-                e.ToTable("training_sessions");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
-                e.Property(x => x.StartsAtUtc).HasColumnName("starts_at_utc").IsRequired();
-                e.Property(x => x.EndsAtUtc).HasColumnName("ends_at_utc").IsRequired();
-                e.Property(x => x.Location).HasColumnName("location").HasMaxLength(200);
-                e.Property(x => x.IsOnline).HasColumnName("is_online").IsRequired();
-                e.Property(x => x.MeetingLink).HasColumnName("meeting_link").HasMaxLength(500);
-                e.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(1000);
-
-                e.HasOne(x => x.Program)
-                 .WithMany(p => p.Sessions)
-                 .HasForeignKey(x => x.ProgramId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasIndex(x => new { x.ProgramId, x.StartsAtUtc });
-            });
-
-            /* ===== TRAINING MATERIALS ===== */
-            model.Entity<TrainingMaterial>(e =>
-            {
-                e.ToTable("training_materials");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
-                e.Property(x => x.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
-                e.Property(x => x.Url).HasColumnName("url").HasMaxLength(1000);
-                e.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(1000);
-                e.Property(x => x.UploadedAtUtc).HasColumnName("uploaded_at_utc");
-
-                e.HasOne(x => x.Program)
-                 .WithMany(p => p.Materials)
-                 .HasForeignKey(x => x.ProgramId)
-                 .OnDelete(DeleteBehavior.Cascade);
-            });
 
             /* ===== TRAINING ENROLLMENTS ===== */
             model.Entity<TrainingEnrollment>(e =>
             {
                 e.ToTable("training_enrollments");
+
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+                e.Property(x => x.Id)
+                 .HasColumnName("id")
+                 .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
-                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
-                e.Property(x => x.EmployeeId).HasColumnName("employee_id").IsRequired();
-                e.Property(x => x.EnrolledOnUtc).HasColumnName("enrolled_on_utc");
-                e.Property(x => x.ProgressPercent).HasColumnName("progress_percent");
-                e.Property(x => x.CompletedOnUtc).HasColumnName("completed_on_utc");
+                e.Property(x => x.TenantId)
+                 .HasColumnName("tenant_id")
+                 .IsRequired();
 
-                e.HasOne(x => x.Program)
+                e.Property(x => x.OrganizationId)
+                 .HasColumnName("organization_id");
+
+                e.Property(x => x.ProgramId)
+                 .HasColumnName("program_id")
+                 .IsRequired();
+
+                e.Property(x => x.EmployeeId)
+                 .HasColumnName("employee_id")
+                 .IsRequired();
+
+                e.Property(x => x.EnrollmentNote)
+                 .HasColumnName("enrollment_note")
+                 .HasMaxLength(500);
+
+                e.Property(x => x.EnrolledAt)
+                 .HasColumnName("enrolled_at");
+
+                e.HasOne(x => x.TrainingProgram)
                  .WithMany(p => p.Enrollments)
                  .HasForeignKey(x => x.ProgramId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // (employee_id, tenant_id) -> Employee (id, tenant_id)
-                e.HasOne(x => x.Employee)
+                e.HasOne(x => x.Organization)
                  .WithMany()
-                 .HasForeignKey(x => new { x.EmployeeId, x.TenantId })
-                 .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
+                 .HasForeignKey(x => x.OrganizationId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // one enrollment per program per employee per tenant
-                e.HasIndex(x => new { x.ProgramId, x.EmployeeId, x.TenantId }).IsUnique();
+                // prevent duplicate enrollment
+                e.HasIndex(x => new { x.ProgramId, x.EmployeeId, x.TenantId })
+                 .IsUnique();
             });
+
 
             /* ===== TRAINING FEEDBACK ===== */
             model.Entity<TrainingFeedback>(e =>
             {
                 e.ToTable("training_feedback");
+
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("NEWSEQUENTIALID()");
+                e.Property(x => x.Id)
+                 .HasColumnName("id")
+                 .HasDefaultValueSql("NEWSEQUENTIALID()");
 
-                e.Property(x => x.ProgramId).HasColumnName("program_id").IsRequired();
-                e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
-                e.Property(x => x.EmployeeId).HasColumnName("employee_id").IsRequired();
-                e.Property(x => x.Rating).HasColumnName("rating");
-                e.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
-                e.Property(x => x.SubmittedOnUtc).HasColumnName("submitted_on_utc");
+                e.Property(x => x.TenantId)
+                 .HasColumnName("tenant_id")
+                 .IsRequired();
 
-                e.HasOne(x => x.Program)
-                 .WithMany(p => p.Feedback)
+                e.Property(x => x.OrganizationId)
+                 .HasColumnName("organization_id");
+
+                e.Property(x => x.ProgramId)
+                 .HasColumnName("program_id")
+                 .IsRequired();
+
+                e.Property(x => x.EnrollmentId)
+                 .HasColumnName("enrollment_id")
+                 .IsRequired();
+
+                e.Property(x => x.EmployeeId)
+                 .HasColumnName("employee_id")
+                 .IsRequired();
+
+                e.Property(x => x.Feedback)
+                 .HasColumnName("feedback")
+                 .HasMaxLength(1000)
+                 .IsRequired();
+
+                e.Property(x => x.CreatedAt)
+                 .HasColumnName("created_at");
+
+                e.HasOne(x => x.TrainingProgram)
+                 .WithMany(p => p.Feedbacks)
                  .HasForeignKey(x => x.ProgramId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-
-                e.HasOne(x => x.Employee)
-                 .WithMany()
-                 .HasForeignKey(x => new { x.EmployeeId, x.TenantId })
-                 .HasPrincipalKey(emp => new { emp.EmployeeID, emp.TenantId })
+                e.HasOne(x => x.Enrollment)
+                 .WithOne(e => e.Feedback)
+                 .HasForeignKey<TrainingFeedback>(x => x.EnrollmentId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // one feedback per program per employee per tenant
-                e.HasIndex(x => new { x.ProgramId, x.EmployeeId, x.TenantId }).IsUnique();
+
+                // one feedback per enrollment
+                e.HasIndex(x => new { x.EnrollmentId, x.TenantId })
+                 .IsUnique();
             });
 
-
+            model.Entity<TrainingProgram>()
+                .HasOne(p => p.Tenant)
+                .WithMany()
+                .HasForeignKey(p => p.TenantId)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
 
